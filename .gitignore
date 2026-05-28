@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*.db
+photos/
+*.egg-info/
+.env
+.claude/
+stdout.txt
+stderr.txt
