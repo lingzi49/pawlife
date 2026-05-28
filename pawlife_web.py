@@ -70,10 +70,11 @@ from sqlalchemy.ext.declarative import declarative_base
 # ============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Render 部署：使用持久化磁盘目录（/opt/render/project/data）
+# 云端部署：通过 DATA_DIR 环境变量指定持久化数据目录（Fly.io /data、Render 等）
 # 本地开发：使用项目目录
-if os.environ.get("RENDER"):
-    DATA_DIR = "/opt/render/project/data"
+cloud_dir = os.environ.get("DATA_DIR", "")
+if cloud_dir:
+    DATA_DIR = cloud_dir
     os.makedirs(DATA_DIR, exist_ok=True)
 else:
     DATA_DIR = BASE_DIR
