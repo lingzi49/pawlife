@@ -3015,7 +3015,7 @@ input[type="file"]::file-selector-button:hover {
         <span class="today-card-icon" id="todayCardIcon">💡</span>
       </div>
       <div class="today-card-body">
-        <div class="today-card-title">今日汪汪 <span style="color:var(--muted);font-size:0.78em;font-weight:400;">— 今天我想对你说…</span></div>
+        <div class="today-card-title">今日汪汪 <span style="color:var(--muted);font-size:0.78em;font-weight:400;">— 快把耳朵凑过来…</span></div>
         <div class="today-card-text" id="todayCardText">
           <div class="skeleton" style="width:80%;margin:6px 0;"></div>
         </div>
