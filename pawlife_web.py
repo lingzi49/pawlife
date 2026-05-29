@@ -32,7 +32,7 @@ from urllib.parse import quote
 import webbrowser
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 # ============================================================
 # 自动安装缺失依赖
@@ -100,9 +100,12 @@ class Dog(Base):
     weight = Column(String(16), nullable=True, comment="体重")
     neutered = Column(String(8), nullable=True, comment="绝育情况：是/否/未知")
     allergies = Column(String(256), nullable=True, comment="过敏源，逗号分隔")
+    gender = Column(String(10), nullable=True, comment="性别：male/female")
     photo = Column(String(128), nullable=True, comment="照片文件名")
     bath_interval_days = Column(Integer, nullable=True, comment="建议洗澡间隔天数")
     last_bath_date = Column(Date, nullable=True, comment="上次洗澡日期")
+    diseases = Column(String(256), nullable=True, comment="已知疾病，逗号分隔")
+    suspended_until = Column(DateTime, nullable=True, comment="高风险事件暂停建议截止时间")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -115,6 +118,8 @@ class Event(Base):
     type = Column(String(32), nullable=False, comment="事件类型：疫苗/驱虫/发情/异常行为")
     date = Column(Date, nullable=False, comment="事件日期")
     detail = Column(Text, nullable=True, comment="JSON 格式的详情")
+    high_risk = Column(Integer, nullable=False, default=0, comment="是否高风险事件 1=是")
+    risk_keyword = Column(String(64), nullable=True, comment="命中的高危症状关键词")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -143,6 +148,20 @@ class SupplementAlert(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RiskLog(Base):
+    """高风险事件拦截日志表（法律合规追溯）"""
+    __tablename__ = "risk_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dog_id = Column(Integer, nullable=False, comment="关联狗狗ID")
+    input_text = Column(String(512), nullable=False, comment="用户输入的原始文本")
+    matched_keyword = Column(String(64), nullable=False, comment="命中的高危词")
+    action_taken = Column(String(64), nullable=False, default="suspended_diet_and_supplements")
+    warning_shown = Column(Integer, nullable=False, default=1, comment="警告是否已展示")
+    user_confirmed = Column(Integer, nullable=False, default=0, comment="用户是否确认 0=未确认 1=已确认")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
@@ -157,6 +176,17 @@ def init_db():
             conn.execute(text("ALTER TABLE dogs ADD COLUMN bath_interval_days INTEGER"))
         if "last_bath_date" not in existing:
             conn.execute(text("ALTER TABLE dogs ADD COLUMN last_bath_date DATE"))
+        if "gender" not in existing:
+            conn.execute(text("ALTER TABLE dogs ADD COLUMN gender VARCHAR(10)"))
+        if "diseases" not in existing:
+            conn.execute(text("ALTER TABLE dogs ADD COLUMN diseases VARCHAR(256)"))
+        if "suspended_until" not in existing:
+            conn.execute(text("ALTER TABLE dogs ADD COLUMN suspended_until DATETIME"))
+        existing_evt = [r[1] for r in conn.execute(text("PRAGMA table_info(events)")).fetchall()]
+        if "high_risk" not in existing_evt:
+            conn.execute(text("ALTER TABLE events ADD COLUMN high_risk INTEGER DEFAULT 0"))
+        if "risk_keyword" not in existing_evt:
+            conn.execute(text("ALTER TABLE events ADD COLUMN risk_keyword VARCHAR(64)"))
         conn.commit()
 
 
@@ -216,6 +246,15 @@ BREED_OPTIONS = ["金毛", "拉布拉多", "柯基", "贵宾", "豆柴", "混血
 EVENT_TYPES = ["疫苗", "驱虫", "发情", "异常行为", "洗澡澡"]
 ABNORMAL_SYMPTOMS = ["跛行", "呕吐", "拉稀", "抓痒", "猛喝水", "不吃东西"]
 
+# 高危症状词库 — 命中任一关键词即触发紧急拦截（不可修改）
+HIGH_RISK_SYMPTOMS = [
+    "反复呕吐", "持续呕吐", "吐血", "呕血", "腹泻带血", "便血", "黑便",
+    "抽搐", "癫痫", "昏厥", "晕倒", "瘫痪", "呼吸困难", "呼吸急促",
+    "极度萎靡", "意识丧失", "瞳孔散大", "严重过敏", "面部肿胀",
+    "车祸", "中毒", "误食巧克力", "误食洋葱", "误食葡萄", "误食木糖醇",
+    "误食老鼠药", "被蛇咬", "严重外伤", "大出血", "骨折", "烫伤",
+]
+
 
 class DogCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
@@ -224,6 +263,8 @@ class DogCreate(BaseModel):
     weight: Optional[str] = None
     neutered: Optional[str] = "未知"
     allergies: Optional[str] = None
+    gender: Optional[Literal["male", "female"]] = None
+    diseases: Optional[str] = None
 
     @validator("breed")
     def breed_must_be_valid(cls, v):
@@ -272,6 +313,8 @@ class EventCreate(BaseModel):
     date: date
     detail: Optional[Dict[str, Any]] = None
     idem_key: Optional[str] = None  # 幂等键，前端生成
+    high_risk: Optional[int] = 0
+    risk_keyword: Optional[str] = None
 
     @validator("type")
     def type_must_be_valid(cls, v):
@@ -532,6 +575,7 @@ def create_demo_data():
             weight="7.8kg",
             neutered="否",
             allergies="",
+            gender="female",
         )
         db.add(demo_dog)
         db.flush()
@@ -569,7 +613,10 @@ def api_get_dog():
             "weight": dog.weight or "",
             "neutered": dog.neutered or "未知",
             "allergies": dog.allergies or "",
+            "gender": dog.gender or "",
             "photo": dog.photo or "",
+            "diseases": dog.diseases or "",
+            "suspended_until": dog.suspended_until.isoformat() if dog.suspended_until else None,
         }
 
 
@@ -584,6 +631,8 @@ def api_create_dog(payload: DogCreate):
             weight=payload.weight,
             neutered=payload.neutered or "未知",
             allergies=payload.allergies,
+            gender=payload.gender,
+            diseases=payload.diseases,
             bath_interval_days=_calc_bath_interval(payload.weight),
             last_bath_date=date.today(),
         )
@@ -609,6 +658,8 @@ def api_update_dog(payload: DogCreate):
         dog.weight = payload.weight
         dog.neutered = payload.neutered or "未知"
         dog.allergies = payload.allergies
+        dog.gender = payload.gender
+        dog.diseases = payload.diseases
         dog.bath_interval_days = _calc_bath_interval(payload.weight)
         db.flush()
         _refresh_supplement_alerts(db, dog)
@@ -618,7 +669,16 @@ def api_update_dog(payload: DogCreate):
         }
 
 
-# 过敏源 → 需排除的食物列表
+@app.post("/api/dog/unsuspend")
+def api_unsuspend_dog():
+    """解除高风险事件导致的建议暂停"""
+    with get_db() as db:
+        dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
+        if not dog:
+            raise HTTPException(status_code=404, detail="还没有狗狗档案，主人先去建档吧～")
+        dog.suspended_until = None
+        db.flush()
+        return {"message": "汪汪！警报已解除，饮食和保健品建议已恢复正常～🐾"}
 ALLERGY_FOOD_MAP = {
     "鸡": ["鸡胸肉", "鸡腿肉", "鸡胸肉丁", "鸡胸肉丝", "蛋黄", "鸡蛋"],
     "鸡肉": ["鸡胸肉", "鸡腿肉", "鸡胸肉丁", "鸡胸肉丝"],
@@ -700,6 +760,14 @@ def api_dog_diet():
         if not dog:
             raise HTTPException(status_code=404, detail="还没有狗狗档案，主人先去建档吧～")
 
+        # 检查是否被高风险事件暂停
+        if dog.suspended_until and dog.suspended_until > datetime.utcnow():
+            return {
+                "ready": False,
+                "suspended": True,
+                "message": "🚨 因您最近记录了高风险症状，今日饮食建议已暂停。请优先联系兽医，确认宠物状况稳定后可点击下方按钮恢复建议。",
+            }
+
         weight_kg = _parse_weight_kg(dog.weight)
         if weight_kg is None:
             return {
@@ -717,7 +785,7 @@ def api_dog_diet():
                 "message": "主人，我的档案还不够完整，记得帮我补上体重和生日，我才知道怎么吃更健康哦～",
             }
 
-        plan = _calc_daily_grams(dog.birthday, weight_kg, dog.neutered or "未知")
+        plan = _calc_daily_grams(dog.birthday, weight_kg, dog.neutered or "未知", dog.gender)
 
         meals = foods["meals"]
         daily_recipe = random.choice(foods["daily"])
@@ -791,13 +859,32 @@ def api_dog_diet():
             "幼犬": f"主人，照着这个喂我，我会长得壮壮、毛亮亮哦！每天{meals}顿饭，陪我一起长大～🐾",
             "老年犬": f"主人，我的牙口不如从前啦，记得把食材切碎蒸软哦～每天{meals}顿饭，和你在一起的每一天都是好时光～🐾",
         }
+        # 按性别区分称呼
+        gender_title = ""
+        if dog.gender == "male":
+            gender_title = "小王子"
+        elif dog.gender == "female":
+            gender_title = "小公主"
         heartfelt = heartfelt_map.get(age_stage,
             f"主人，照着这个喂我，我会长得壮壮、毛亮亮哦！每天陪我一起吃饭，是我最开心的时光～🐾")
+        if gender_title:
+            heartfelt = f"适合活泼的{gender_title}～ " + heartfelt
+
+        # 极小型犬低血糖风险提示
+        hypoglycemia_note = ""
+        if weight_kg is not None and weight_kg < 2 and age_stage == "幼犬":
+            hypoglycemia_note = "⚠️ 超小型幼犬（<2kg）有低血糖风险，建议每天进食6-8次，如出现精神萎靡、走路不稳、牙龈苍白，立即喂少量蜂蜜水并联系兽医！"
 
         # 过敏提示
         allergy_note = ""
         if allergies_str:
             allergy_note = f"⚠️ 已避开你的过敏源（{allergies_str}），替换为安全的食材啦～"
+
+        # 疾病状态提示
+        disease_note = ""
+        diseases_str = (dog.diseases or "").strip()
+        if diseases_str:
+            disease_note = f"⚕️ 档案中记录有已知健康状况（{diseases_str}），此饮食建议仅供兽医参考，请在兽医指导下调整饮食方案。"
 
         return {
             "ready": True,
@@ -822,6 +909,8 @@ def api_dog_diet():
             "carb_options": carb_options,
             "veggie_options": veggie_options,
             "allergy_note": allergy_note,
+            "disease_note": disease_note,
+            "hypoglycemia_note": hypoglycemia_note,
         }
 
 
@@ -893,14 +982,40 @@ def api_create_event(payload: EventCreate):
             if not dog:
                 raise HTTPException(status_code=404, detail="找不到这只狗狗，主人先建档吧～")
 
+            # 发情期事件：仅母犬可记录
+            if payload.type == "发情" and dog.gender == "male":
+                raise HTTPException(status_code=400, detail="我是小王子，不会来姨妈哦～")
+
             detail_json = json.dumps(payload.detail, ensure_ascii=False) if payload.detail else None
             event = Event(
                 dog_id=payload.dog_id,
                 type=payload.type,
                 date=payload.date,
                 detail=detail_json,
+                high_risk=payload.high_risk or 0,
+                risk_keyword=payload.risk_keyword or None,
             )
             db.add(event)
+
+            # 高风险事件：暂停饮食和保健品建议至当天结束
+            if payload.high_risk:
+                today_end = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=0)
+                dog.suspended_until = today_end
+                # 记录风险日志
+                symptom_text = ""
+                if payload.detail and isinstance(payload.detail, dict):
+                    symptoms = payload.detail.get("symptoms", [])
+                    if isinstance(symptoms, list):
+                        symptom_text = "，".join(symptoms)
+                risk_log = RiskLog(
+                    dog_id=payload.dog_id,
+                    input_text=symptom_text[:512],
+                    matched_keyword=payload.risk_keyword or "",
+                    action_taken="suspended_diet_and_supplements",
+                    warning_shown=1,
+                    user_confirmed=1,
+                )
+                db.add(risk_log)
 
             # 生成狗狗第一人称反应
             detail_dict = payload.detail if isinstance(payload.detail, dict) else {}
@@ -912,7 +1027,7 @@ def api_create_event(payload: EventCreate):
                 reaction = generate_heat_reaction(dog.name, detail_dict)
             elif payload.type == "异常行为":
                 reaction = generate_abnormal_reaction(dog.name, dog.breed, detail_dict)
-                # 异常行为后刷新保健品推荐
+                # 异常行为后刷新保健品推荐（高风险事件也要刷新）
                 _refresh_supplement_alerts(db, dog)
             elif payload.type == "洗澡澡":
                 interval = dog.bath_interval_days or 10
@@ -940,6 +1055,11 @@ def api_update_event(event_id: int, payload: EventCreate):
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="找不到这条事件记录，主人～")
+
+        # 发情期事件：仅母犬可记录
+        dog = db.query(Dog).filter(Dog.id == event.dog_id).first()
+        if payload.type == "发情" and dog and dog.gender == "male":
+            raise HTTPException(status_code=400, detail="我是小王子，不会来姨妈哦～")
 
         event.type = payload.type
         event.date = payload.date
@@ -1031,9 +1151,9 @@ def _calc_bath_interval(weight_str: Optional[str]) -> int:
     if kg < 5:
         return 14
     elif kg < 15:
-        return 10
+        return 14
     else:
-        return 7
+        return 10
 
 
 def _get_age_stage(birthday: date) -> str:
@@ -1099,7 +1219,7 @@ DIET_FOODS = {
             "牛肉 + 西兰花 + 糙米饭",
             "羊肉 + 胡萝卜 + 燕麦",
         ],
-        "tip": "大型幼犬骨骼发育快，注意钙磷平衡，可适量添加蛋壳粉～",
+        "tip": "⚠️ 大型幼犬骨骼发育关键期：钙磷比需严格控制在1.1:1~1.8:1（NRC标准）。每500g食物建议添加约2g蛋壳粉（约400mg钙），过量或不足均可能导致骨骼发育异常。请务必咨询兽医确认具体剂量！",
     },
     ("成犬", "小型犬"): {
         "meals": 2,
@@ -1225,7 +1345,7 @@ def _calc_rer(weight_kg: float) -> float:
         return 70.0 * (weight_kg ** 0.75)
 
 
-def _calc_daily_grams(dog_birthday: date, weight_kg: float, neutered: str) -> dict:
+def _calc_daily_grams(dog_birthday: date, weight_kg: float, neutered: str, gender: Optional[str] = None) -> dict:
     """根据 RER → DER → 喂食量 计算每日各食材克数，返回详细字典"""
     # Step 1: RER
     rer = _calc_rer(weight_kg)
@@ -1239,7 +1359,9 @@ def _calc_daily_grams(dog_birthday: date, weight_kg: float, neutered: str) -> di
     else:
         coeff = 1.8
 
-    der = rer * coeff
+    # 性别系数：公犬基础代谢略高于母犬
+    gender_coeff = 1.1 if gender == "male" else 1.0
+    der = rer * coeff * gender_coeff
 
     # Step 3: 每日总喂食量（熟自制能量密度取 1.5 kcal/g）
     total_g = round(der / 1.5)
@@ -1313,8 +1435,8 @@ SUPPLEMENT_RULES = [
         "supplement": "综合维生素/矿物质（钙磷比均衡）",
         "priority": 1,
         "condition": lambda dog, stats: stats["age_stage"] == "幼犬",
-        "reason": "生长发育期需均衡营养",
-        "woof": "我正在长身体，给我一点综合营养粉，让我骨骼牙齿棒棒的！",
+        "reason": "生长发育期需均衡营养（若吃市售全价狗粮则通常无需额外补充）",
+        "woof": "我正在长身体～如果主人给我吃的是自制狗饭，可以加一点综合营养粉让骨骼牙齿棒棒的；如果吃的是市售全价狗粮，一般不需要额外补哦，具体听兽医的！",
     },
     {
         "id": "omega3_itchy",
@@ -1344,15 +1466,28 @@ SUPPLEMENT_RULES = [
         "woof": "我这一身卷毛要勤打理，吃点美毛的，梳毛时就不会那么疼啦。",
     },
     {
-        "id": "urinary_female",
-        "supplement": "泌尿健康（蔓越莓提取物）",
-        "priority": 3,
+        "id": "urinary_female_unneutered",
+        "supplement": "蔓越莓提取物（泌尿/生殖健康）",
+        "priority": 2,
         "condition": lambda dog, stats: (
-            stats["age_months"] >= 60
+            dog.gender == "female"
             and dog.neutered not in ("是",)
+            and stats["age_months"] >= 36
         ),
-        "reason": "中老年未绝育母犬泌尿道感染风险较高",
-        "woof": "主人，我年纪大了，给我吃点蔓越莓保护尿尿的地方吧～",
+        "reason": "未绝育母犬随年龄增长，子宫蓄脓和泌尿道感染风险增加",
+        "woof": "主人，我还没绝育，年纪大了尿尿的地方容易不舒服，给我吃点蔓越莓保护一下吧～",
+    },
+    {
+        "id": "prostate_male_unneutered",
+        "supplement": "南瓜籽提取物（前列腺保健）",
+        "priority": 2,
+        "condition": lambda dog, stats: (
+            dog.gender == "male"
+            and dog.neutered not in ("是",)
+            and stats["age_months"] >= 36
+        ),
+        "reason": "未绝育公犬易出现前列腺肥大等问题",
+        "woof": "主人，我们没绝育的男孩子，前列腺要早点保养，南瓜籽就很好哦～",
     },
 ]
 
@@ -1464,7 +1599,7 @@ def _calc_supplements(db, dog: Dog) -> List[dict]:
     for item in result:
         item.pop("_best_pri", None)
         item["reasons_text"] = "；".join(item["reasons"])
-        suffix = "\n（记得先问问兽医再给我吃哦～）"
+        suffix = "\n（参考剂量请遵兽医指导，不可使用人用保健品替代哦～）"
         if allergy_warning:
             suffix = "\n" + allergy_warning + suffix
         item["woof_full"] = item["woof"] + suffix
@@ -1501,6 +1636,10 @@ def api_supplements():
         dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
         if not dog:
             return {"has_dog": False, "alerts": []}
+
+        # 检查是否被高风险事件暂停
+        if dog.suspended_until and dog.suspended_until > datetime.utcnow():
+            return {"has_dog": True, "suspended": True, "alerts": [], "message": "🚨 因您最近记录了高风险症状，今日保健品建议已暂停。请优先联系兽医，确认宠物状况稳定后可点击下方按钮恢复建议。"}
 
         # 每次请求时刷新计算
         _refresh_supplement_alerts(db, dog)
@@ -1561,25 +1700,25 @@ def api_health_check():
         reminders: List[Dict[str, str]] = []
         today = date.today()
 
-        # 疫苗：每年一次，提前 30 天提醒
+        # 疫苗：核心疫苗（犬瘟/细小/腺病毒）默认3年周期（WSAVA指南），非核心疫苗遵兽医建议
         if last_vaccine:
-            next_vaccine = last_vaccine + timedelta(days=365)
+            next_vaccine = last_vaccine + timedelta(days=1095)  # 3年 = 1095天
             days_left = (next_vaccine - today).days
-            if days_left <= 30:
+            if days_left <= 60:
                 if days_left < 0:
                     reminders.append({
                         "type": "疫苗",
-                        "text": f"主人，掐爪一算，我的疫苗保护已经过期{abs(days_left)}天啦！快带我去补打吧，没有疫苗护体我出门都会害怕的～",
+                        "text": f"主人，掐爪一算，我的核心疫苗保护已超过推荐周期啦！快带我去看兽医，让医生决定我是需要加强还是做抗体检测～不同的疫苗加强周期不同，遵医嘱最重要！",
                     })
                 else:
                     reminders.append({
                         "type": "疫苗",
-                        "text": f"主人，掐爪一算，我的疫苗保护还有{days_left}天就到期啦，记得提前预约医院哦，我想做一只健康有防护的好狗狗～",
+                        "text": f"主人，掐爪一算，我的核心疫苗大约还有{days_left}天需要关注，不同疫苗加强周期不同（核心疫苗通常每3年，非核心疫苗可能每年），记得问兽医我的具体情况哦～",
                     })
         else:
             reminders.append({
                 "type": "疫苗",
-                "text": "主人，我还没有打过疫苗呢！幼犬需要打三针基础疫苗，成年后每年加强一针。快帮我建档记录起来吧～",
+                "text": "主人，我还没有打过疫苗呢！幼犬首免通常在6-8周龄开始，每2-4周加强至16周龄以上；成年后核心疫苗遵医嘱每1-3年加强。快带我去看兽医制定免疫计划吧～",
             })
 
         # 驱虫：根据年龄+品种动态间隔，提前 14 天提醒
@@ -1610,8 +1749,8 @@ def api_health_check():
                 "text": "主人，我还没做过驱虫呢！体内外驱虫从小就要开始做，让我远离寄生虫的困扰～",
             })
 
-        # 发情：未绝育母犬约 6 个月一次
-        if dog.neutered not in ("是",):
+        # 发情：未绝育母犬约 6 个月一次（仅母犬）
+        if dog.gender == "female" and dog.neutered not in ("是",):
             if last_heat:
                 next_heat = last_heat + timedelta(days=180)
                 days_left = (next_heat - today).days
@@ -1676,6 +1815,7 @@ def api_health_check():
                 "neutered": dog.neutered or "未知",
                 "allergies": dog.allergies or "",
                 "photo": dog.photo or "",
+                "gender": dog.gender or "",
             },
             "reminders": reminders,
             "latest_event": latest_event,
@@ -1739,6 +1879,7 @@ def api_vet_summary(event_id: int):
                 "weight": dog.weight or "未记录",
                 "neutered": dog.neutered or "未知",
                 "allergies": dog.allergies or "无",
+                "gender": dog.gender or "",
             },
             "event_date": event.date.isoformat(),
             "symptoms": symptoms,
@@ -2972,17 +3113,32 @@ input[type="file"]::file-selector-button:hover {
       </div>
       <div class="form-row">
         <div class="form-col"><label>我的体重</label><input id="mWeight" placeholder="例：28kg" /></div>
-        <div class="form-col"><label>绝育情况</label>
-          <select id="mNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
+        <div class="form-col"><label>我的性别</label>
+          <select id="mGender"><option value="">保密</option><option value="male">公</option><option value="female">母</option></select>
         </div>
       </div>
       <div class="form-row">
+        <div class="form-col"><label>绝育情况</label>
+          <select id="mNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
+        </div>
         <div class="form-col"><label>过敏源</label><input id="mAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>已知健康状况 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input id="mDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>我的照片 <span style="color:var(--muted);font-weight:400;">（可选）</span></label>
           <input type="file" id="mPhoto" accept="image/jpeg,image/png" />
         </div>
+      </div>
+      <div style="background:#FFFBF5;border:1px solid #FFE0C0;border-radius:8px;padding:10px 14px;margin-top:12px;font-size:0.82em;color:var(--brown-light);line-height:1.6;">
+        ⚠️ 免责声明：本应用提供的所有内容（包括饮食建议、保健品提醒、事件提醒等）仅供参考和教育目的，不能替代执业兽医的专业诊断、治疗或建议。如您的宠物出现任何健康问题或紧急情况，请立即联系持证兽医。
+      </div>
+      <div style="margin-top:8px;font-size:0.9em;">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--brown);">
+          <input type="checkbox" id="mDisclaimerAgree" style="width:auto;accent-color:var(--orange);" />
+          我已阅读并理解上述免责声明
+        </label>
       </div>
     </div>
     <div class="modal-footer">
@@ -3221,12 +3377,18 @@ input[type="file"]::file-selector-button:hover {
       </div>
       <div class="form-row">
         <div class="form-col"><label>我的体重</label><input id="eWeight" placeholder="例：28kg" /></div>
-        <div class="form-col"><label>绝育情况</label>
-          <select id="eNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
+        <div class="form-col"><label>我的性别</label>
+          <select id="eGender"><option value="">保密</option><option value="male">公</option><option value="female">母</option></select>
         </div>
       </div>
       <div class="form-row">
+        <div class="form-col"><label>绝育情况</label>
+          <select id="eNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
+        </div>
         <div class="form-col"><label>过敏源</label><input id="eAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-col"><label>已知健康状况 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input id="eDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
       </div>
       <div class="form-row">
         <div class="form-col"><label>我的照片 <span style="color:var(--muted);font-weight:400;">（可选）</span></label>
@@ -3237,6 +3399,28 @@ input[type="file"]::file-selector-button:hover {
     <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-outline" id="btnEditCancel">取消</button>
       <button class="btn btn-primary" id="btnEditSave">💾 保存更新</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 高风险紧急警告弹窗 ===== -->
+<div class="modal-overlay" id="riskWarningOverlay" style="display:none;">
+  <div class="modal-card" style="max-width:480px;border:2px solid var(--red);">
+    <div class="modal-header">
+      <div style="font-size:2.5em;">🚨</div>
+      <h2 style="color:var(--red);">紧急提醒：请立即联系兽医</h2>
+    </div>
+    <div class="modal-body" style="font-size:0.92em;line-height:1.8;color:var(--brown);">
+      <p>您记录的症状（包含"<strong id="riskMatchedKeyword" style="color:var(--red);"></strong>"）可能表明宠物存在严重的健康风险，甚至危及生命。</p>
+      <p>本应用无法诊断或治疗疾病。请立即采取以下行动：</p>
+      <ol style="padding-left:18px;">
+        <li>立即联系您的兽医或最近的24小时宠物医院</li>
+        <li>不要等待观察，不要自行用药</li>
+        <li>本应用今天的饮食与保健品建议已自动暂停，直到您确认宠物状况稳定</li>
+      </ol>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-lg" id="btnRiskConfirm">我知道了，已联系兽医</button>
     </div>
   </div>
 </div>
@@ -3265,7 +3449,10 @@ input[type="file"]::file-selector-button:hover {
 </div>
 
 <div class="app-footer">
-  © PawLife · 汪星人出品 · 用爱守护每一只狗狗 🐾 <span style="opacity:0.4;font-size:0.75em;">v2505.3</span>
+  <div style="max-width:720px;margin:0 auto;font-size:0.78em;color:var(--muted);line-height:1.6;padding:8px 14px;background:#FFFBF5;border-radius:8px;border:1px solid var(--border);">
+    ⚠️ 免责声明：本应用提供的所有内容（包括饮食建议、保健品提醒、事件提醒等）仅供参考和教育目的，不能替代执业兽医的专业诊断、治疗或建议。如您的宠物出现任何健康问题或紧急情况，请立即联系持证兽医。
+  </div>
+  <div style="margin-top:8px;">© PawLife · 汪星人出品 · 用爱守护每一只狗狗 🐾 <span style="opacity:0.4;font-size:0.75em;">v2505.3</span></div>
 </div>
 
 </div><!-- /#mainContent -->
@@ -3276,6 +3463,23 @@ input[type="file"]::file-selector-button:hover {
 // ============================================================
 
 const $ = id => document.getElementById(id);
+
+// ---- 高危症状词库（前端匹配，与服务端保持一致） ----
+const HIGH_RISK_SYMPTOMS = [
+  "反复呕吐", "持续呕吐", "吐血", "呕血", "腹泻带血", "便血", "黑便",
+  "抽搐", "癫痫", "昏厥", "晕倒", "瘫痪", "呼吸困难", "呼吸急促",
+  "极度萎靡", "意识丧失", "瞳孔散大", "严重过敏", "面部肿胀",
+  "车祸", "中毒", "误食巧克力", "误食洋葱", "误食葡萄", "误食木糖醇",
+  "误食老鼠药", "被蛇咬", "严重外伤", "大出血", "骨折", "烫伤",
+];
+
+// 检查文本是否包含高危症状关键词，返回命中的关键词（null 表示通过）
+function checkHighRisk(text) {
+  for (const kw of HIGH_RISK_SYMPTOMS) {
+    if (text.indexOf(kw) !== -1) return kw;
+  }
+  return null;
+}
 
 // ---- 工具函数 ----
 function genIdemKey() {
@@ -3717,6 +3921,9 @@ function renderVetCard(data) {
   infoHtml += '<span class="vet-info-tag">🎂 ' + escHtml(d.age) + '</span>';
   infoHtml += '<span class="vet-info-tag">⚖️ ' + escHtml(d.weight) + '</span>';
   infoHtml += '<span class="vet-info-tag">✂️ ' + (d.neutered === '是' ? '已绝育' : (d.neutered === '否' ? '未绝育' : '绝育未知')) + '</span>';
+  if (d.gender) {
+    infoHtml += '<span class="vet-info-tag">⚥ ' + (d.gender === 'male' ? '公' : '母') + '</span>';
+  }
   if (d.allergies && d.allergies !== '无') {
     infoHtml += '<span class="vet-info-tag">⚠️ 过敏：' + escHtml(d.allergies) + '</span>';
   }
@@ -3799,8 +4006,10 @@ async function loadProfile() {
       <div class="profile-info-item">🐕 <strong>品种：</strong>${escHtml(dog.breed)}</div>
       <div class="profile-info-item">🎂 <strong>生日：</strong>${dog.birthday}<span style="color:var(--muted);font-size:0.85em;">（${age}）</span></div>
       <div class="profile-info-item">⚖️ <strong>体重：</strong>${dog.weight || '未填写'}</div>
+      <div class="profile-info-item">⚥ <strong>性别：</strong>${dog.gender === 'male' ? '公' : dog.gender === 'female' ? '母' : '保密'}</div>
       <div class="profile-info-item">✂️ <strong>绝育：</strong>${dog.neutered || '未知'}</div>
       <div class="profile-info-item">⚠️ <strong>过敏源：</strong>${dog.allergies || '未填写'}</div>
+      <div class="profile-info-item">🏥 <strong>已知健康状况：</strong>${dog.diseases || '未填写'}</div>
     `;
 
     if (editBtn) editBtn.style.display = '';
@@ -3809,8 +4018,9 @@ async function loadProfile() {
     showDogPhoto(dog.photo, dog.breed);
     updateGreeting(dog.name);
 
-    // 更新事件卡片副标题
+    // 更新事件卡片副标题和发情选项
     updateEventSubtitle(dog.name);
+    updateEstrusOption(dog.gender);
 
     // 预加载饮食和保健品数据
     loadDietCard();
@@ -3933,6 +4143,26 @@ function calcIsPuppy(birthStr) {
   return months < 12;
 }
 
+function updateEstrusOption(gender) {
+  // 根据狗狗性别控制"发情期"事件选项的显示
+  const estrusOption = document.querySelector('#fEType option[value="发情"]');
+  if (estrusOption) {
+    if (gender === 'male') {
+      estrusOption.style.display = 'none';
+      if ($('fEType').value === '发情') {
+        $('fEType').value = '疫苗';
+        renderExtraFields();
+      }
+    } else {
+      estrusOption.style.display = '';
+    }
+  }
+  // 同步隐藏时间线筛选中的发情选项
+  document.querySelectorAll('.tl-filter[data-filter="发情"]').forEach(f => {
+    f.style.display = (gender === 'male') ? 'none' : '';
+  });
+}
+
 function updateEventSubtitle(dogName) {
   const sub = $('eventSubtitle');
   if (sub && dogName) {
@@ -3967,7 +4197,8 @@ async function loadDietCard() {
     const data = await api('/api/dog/diet');
     if (!data.ready) {
       card.style.display = '';
-      area.innerHTML = `<div style="font-size:0.9em;color:var(--brown-light);line-height:1.8;">🐾 ${escHtml(data.message)}</div>`;
+      const suspendedHtml = data.suspended ? `<div style="margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="restoreSuggestions()" style="color:var(--orange);border-color:var(--orange);">✅ 已联系兽医，恢复建议</button></div>` : '';
+      area.innerHTML = `<div style="font-size:0.9em;color:var(--brown-light);line-height:1.8;">🐾 ${escHtml(data.message)}</div>${suspendedHtml}`;
       return;
     }
     card.style.display = '';
@@ -4015,13 +4246,15 @@ async function loadDietCard() {
 
           <div class="recipe-cooking-tip">💡 所有食材切碎蒸熟，不放盐哦～</div>
           ${data.allergy_note ? `<div style="text-align:center;font-size:0.78em;color:#C0392B;margin-top:6px;">${escHtml(data.allergy_note)}</div>` : ''}
+          ${data.hypoglycemia_note ? `<div style="text-align:center;font-size:0.78em;color:#E67E22;margin-top:6px;font-weight:600;">${escHtml(data.hypoglycemia_note)}</div>` : ''}
+          ${data.disease_note ? `<div style="text-align:center;font-size:0.78em;color:#8B4513;margin-top:6px;">${escHtml(data.disease_note)}</div>` : ''}
         </div>
 
         <!-- 右侧：辅助信息 -->
         <div class="recipe-side">
           <div class="side-section">
             <div class="side-label">🔄 替换选择</div>
-            <div class="side-text" style="font-size:0.82em;line-height:1.7;">
+            <div class="side-text" style="line-height:1.7;">
               🥩 ${escHtml(data.protein_options)}<br/>
               🥬 ${escHtml(data.veggie_options)}<br/>
               🍚 ${escHtml(data.carb_options)}
@@ -4042,6 +4275,9 @@ async function loadDietCard() {
             💬 ${escHtml(data.heartfelt)}
           </div>
         </div>
+      </div>
+      <div style="margin-top:12px;font-size:0.75em;color:var(--muted);text-align:center;line-height:1.5;padding:6px 8px;background:#FFFBF5;border-radius:6px;border:1px solid #FFE0C0;">
+        📋 此饮食建议基于您填写的档案信息自动生成，仅供参考，不能替代兽医的专业诊断。如有健康问题请立即联系兽医。
       </div>`;
   } catch (e) {
     card.style.display = 'none';
@@ -4054,6 +4290,12 @@ async function loadSupplements() {
   if (!card || !area) return;
   try {
     const data = await api('/api/supplements');
+    if (data.suspended) {
+      card.style.display = '';
+      area.innerHTML = `<div class="supp-empty" style="color:var(--red);">${escHtml(data.message)}</div>
+        <div style="text-align:center;margin-top:10px;"><button class="btn btn-outline btn-sm" onclick="restoreSuggestions()" style="color:var(--orange);border-color:var(--orange);">✅ 已联系兽医，恢复建议</button></div>`;
+      return;
+    }
     if (!data.has_dog || data.alerts.length === 0) {
       card.style.display = '';
       area.innerHTML = '<div class="supp-empty">🛡️ 主人把我照顾得很好，暂时不需要额外补给，继续保持哦～</div>';
@@ -4078,7 +4320,10 @@ async function loadSupplements() {
           <div class="supp-alert-reason">📌 ${escHtml(a.reason)}</div>
           <div class="supp-alert-woof">${escHtml(a.woof_text)}</div>
         </div>
-      </div>`).join('');
+      </div>`).join('') + `
+      <div style="margin-top:12px;font-size:0.75em;color:var(--muted);text-align:center;line-height:1.5;padding:6px 8px;background:#FFFBF5;border-radius:6px;border:1px solid #FFE0C0;">
+        💊 保健品提醒基于一般营养学知识生成，具体服用方案请咨询兽医确认。
+      </div>`;
   } catch (e) {
     card.style.display = 'none';
   }
@@ -4322,6 +4567,8 @@ $('btnModalCreate').addEventListener('click', async function() {
   const weight = $('mWeight').value.trim();
   const neutered = $('mNeutered').value;
   const allergies = $('mAllergies').value.trim();
+  const gender = $('mGender').value;
+  const diseases = $('mDiseases').value.trim();
 
   if (!name || !breed) {
     showToast('汪汪，名字和品种是必填的哦，主人再检查一下～', true);
@@ -4331,6 +4578,10 @@ $('btnModalCreate').addEventListener('click', async function() {
     showToast('生日不能是未来的日子哦，主人～', true);
     return;
   }
+  if (!$('mDisclaimerAgree').checked) {
+    showToast('请先阅读并勾选免责声明哦，主人～', true);
+    return;
+  }
 
   btn.disabled = true;
   btn.textContent = '正在建档...';
@@ -4338,7 +4589,7 @@ $('btnModalCreate').addEventListener('click', async function() {
     const r = await api('/api/dog', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, breed, birthday, weight, neutered, allergies }),
+      body: JSON.stringify({ name, breed, birthday, weight, neutered, allergies, gender: gender || null, diseases: diseases || null }),
     });
     showToast(r.message);
     // 隐藏弹窗，显示主界面
@@ -4417,6 +4668,8 @@ $('btnEditProfile').addEventListener('click', async function() {
     $('eWeight').value = dog.weight || '';
     $('eNeutered').value = dog.neutered || '未知';
     $('eAllergies').value = dog.allergies || '';
+    $('eGender').value = dog.gender || '';
+    $('eDiseases').value = dog.diseases || '';
     // 解析生日
     const parts = dog.birthday.split('-');
     initEditBirthdaySelects(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
@@ -4447,6 +4700,8 @@ $('btnEditSave').addEventListener('click', async function() {
   const weight = $('eWeight').value.trim();
   const neutered = $('eNeutered').value;
   const allergies = $('eAllergies').value.trim();
+  const gender = $('eGender').value;
+  const diseases = $('eDiseases').value.trim();
 
   if (!name || !breed) {
     showToast('汪汪，名字和品种是必填的哦，主人再检查一下～', true);
@@ -4463,7 +4718,7 @@ $('btnEditSave').addEventListener('click', async function() {
     const r = await api('/api/dog', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, breed, birthday, weight, neutered, allergies }),
+      body: JSON.stringify({ name, breed, birthday, weight, neutered, allergies, gender: gender || null, diseases: diseases || null }),
     });
     showToast(r.message);
     $('editModalOverlay').style.display = 'none';
@@ -4493,6 +4748,11 @@ function updateGreeting(dogName) {
   else if (hour >= 12 && hour < 18) greeting = '午安，主人！';
   else if (hour >= 18 && hour < 22) greeting = '晚安，主人！🌙';
   else greeting = '月亮都睡着啦，主人也该休息了～🌙';
+  // 知道性别时加上小王子/小公主称呼
+  if (dogName && _cachedDog && _cachedDog.gender) {
+    const title = _cachedDog.gender === 'male' ? '小王子' : '小公主';
+    greeting = dogName + ' ' + title + ' 对你说：' + greeting;
+  }
   $('greetingText').textContent = greeting;
   $('greetingBar').classList.remove('main-hidden');
 }
@@ -4776,6 +5036,8 @@ function resetWheelDate() {
 initWheelPicker();
 
 // ---- 提交事件 ----
+let _pendingHighRiskSubmit = null;  // 暂存被高风险拦截的提交上下文
+
 $('btnSubmitEvent').addEventListener('click', async function() {
   const btn = this;
   const type = $('fEType').value;
@@ -4800,6 +5062,16 @@ $('btnSubmitEvent').addEventListener('click', async function() {
   } else if (type === '异常行为') {
     const checks = document.querySelectorAll('#symptomGroup input[type="checkbox"]:checked');
     detail.symptoms = Array.from(checks).map(c => c.value);
+    // 高风险症状检查：检查所有选中症状文本
+    const symptomText = detail.symptoms.join('，');
+    const matched = checkHighRisk(symptomText);
+    if (matched) {
+      // 暂存提交上下文，弹出高风险警告
+      _pendingHighRiskSubmit = { type, dateVal, detail, dog_id: null };
+      $('riskMatchedKeyword').textContent = matched;
+      $('riskWarningOverlay').style.display = 'flex';
+      return;
+    }
   } else if (type === '洗澡澡') {
     detail.note = '洗香香啦～';
   }
@@ -4879,6 +5151,87 @@ $('btnSubmitEvent').addEventListener('click', async function() {
   btn.disabled = false;
   btn.textContent = '🐾 提交记录';
 });
+
+// ---- 高风险警告弹窗：确认按钮 ----
+$('btnRiskConfirm').addEventListener('click', async function() {
+  const btn = this;
+  if (!_pendingHighRiskSubmit) return;
+
+  const ctx = _pendingHighRiskSubmit;
+  btn.disabled = true;
+  btn.textContent = '正在处理...';
+
+  try {
+    // 获取狗狗信息
+    const dog = await api('/api/dog');
+    ctx.dog_id = dog.id;
+
+    // 找到命中的关键词
+    const symptomText = ctx.detail.symptoms.join('，');
+    const matched = checkHighRisk(symptomText);
+
+    // 提交高风险事件
+    const idemKey = genIdemKey();
+    const r = await api('/api/event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dog_id: dog.id,
+        type: ctx.type,
+        date: ctx.dateVal,
+        detail: ctx.detail,
+        idem_key: idemKey,
+        high_risk: 1,
+        risk_keyword: matched || '',
+      }),
+    });
+
+    // 关闭警告弹窗
+    $('riskWarningOverlay').style.display = 'none';
+    _pendingHighRiskSubmit = null;
+
+    if (r.duplicate) {
+      showToast('这条记录已经提交过啦，不用重复操作哦～');
+    } else {
+      showToast('✅ 已记录高风险事件，今日饮食与保健品建议已暂停。请务必联系兽医！');
+    }
+
+    const reactionBox = $('eventReaction');
+    reactionBox.innerHTML = '<div class="reaction-text" style="color:var(--red);">' + escHtml(r.message).replace(/\n/g, '<br>') + '</div>';
+    if (r.event_id) {
+      reactionBox.innerHTML += '<div style="margin-top:12px;text-align:center;"><button class="vet-btn vet-btn-screen" style="font-size:0.9em;" onclick="showVetSummary(' + r.event_id + ')">📋 生成兽医摘要，方便就医时出示</button></div>';
+    }
+    reactionBox.className = 'reaction-box show';
+
+    // 重置表单
+    cancelEdit();
+    resetWheelDate();
+    renderExtraFields();
+    loadTimeline();
+    loadToday();
+    loadDietCard();
+    loadSupplements();
+  } catch (e) {
+    showToast(e.message || '汪汪，提交失败了，点我重试～', true);
+    $('riskWarningOverlay').style.display = 'none';
+    _pendingHighRiskSubmit = null;
+  }
+  btn.disabled = false;
+  btn.textContent = '我知道了，已联系兽医';
+});
+
+// ---- 恢复建议按钮（解除暂停） ----
+async function restoreSuggestions() {
+  try {
+    const r = await api('/api/dog/unsuspend', { method: 'POST' });
+    showToast(r.message);
+    loadDietCard();
+    loadSupplements();
+    loadToday();
+  } catch (e) {
+    showToast(e.message || '汪汪，恢复失败了，点我重试～', true);
+  }
+}
 
 // ---- 导出备份数据（CSV 格式，Excel 可直接打开） ----
 $('btnExport').addEventListener('click', async function() {
