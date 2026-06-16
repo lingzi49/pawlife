@@ -7,3 +7,5 @@ photos/
 .claude/
 stdout.txt
 stderr.txt
+# 项目文档/报告，不上传版本库
+*报告.md
