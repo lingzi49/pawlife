@@ -3784,133 +3784,150 @@ body {
 }
 
 /* ===== 荣誉勋章墙 ===== */
-.badge-wall-card {
-  background: #C8A26D;
-  background-image: radial-gradient(circle, #B8956A 1px, transparent 1px);
-  background-size: 10px 10px;
-  border-radius: 16px;
-  border: 3px solid #A67B5B;
-  padding: 20px 16px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.1);
+/* ===== 荣誉勋章页 ===== */
+/* 情绪安抚区 */
+.badge-emotion-card {
+  background: linear-gradient(135deg, #FFF8EF 0%, #FEF0DD 100%);
+  border-radius: 20px; padding: 20px 18px; margin-bottom: 16px;
+  border: 1px solid #F0DCC0;
+  box-shadow: 0 2px 12px rgba(180,140,100,0.08);
 }
-.badge-cork-title {
-  text-align: center;
-  font-size: 1.05em;
-  font-weight: 700;
-  color: #5D3A1A;
-  margin-bottom: 8px;
-  text-shadow: 0 1px 1px rgba(255,255,255,0.3);
+.badge-emotion-inner {
+  display: flex; align-items: center; gap: 16px;
 }
-.badge-progress-wrap {
-  display: flex; align-items: center; gap: 8px;
-  margin: 0 auto 16px; max-width: 360px;
+.badge-emotion-left {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; flex-shrink: 0;
 }
-.badge-progress-bar {
-  flex: 1; height: 8px; background: #E8DDD0;
-  border-radius: 4px; overflow: hidden;
+.badge-emotion-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: #FBE8D0; display: flex; align-items: center; justify-content: center;
+  font-size: 1.6em; border: 2px solid #F0D0A0;
 }
-.badge-progress-fill {
-  height: 100%; background: linear-gradient(90deg, var(--orange), #FFB74D);
-  border-radius: 4px; transition: width 0.5s ease;
+.badge-emotion-name {
+  font-size: 0.88em; font-weight: 700; color: var(--brown);
 }
-.badge-progress-text {
-  font-size: 0.82em; font-weight: 700; color: var(--orange);
-  min-width: 36px; text-align: right;
+.badge-emotion-days {
+  font-size: 0.72em; color: var(--brown-light);
 }
-.badge-next-card {
-  text-align: center; margin-top: 14px; padding: 12px 14px;
-  background: linear-gradient(135deg, #FFF8E1, #FFF3E0);
-  border-radius: var(--radius-sm); border: 1.5px dashed var(--orange);
+.badge-emotion-right {
+  flex: 1;
 }
-.badge-next-label { font-size: 0.78em; color: var(--muted); margin-bottom: 2px; }
-.badge-next-name { font-size: 1em; font-weight: 700; color: var(--brown); margin-bottom: 2px; }
-.badge-next-condition { font-size: 0.75em; color: var(--brown-light); }
-.badge-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
+.badge-emotion-count {
+  font-size: 1.15em; font-weight: 700; color: #C98A4B; margin-bottom: 4px;
 }
-.badge-medal {
-  background: #FFF;
-  border-radius: 14px;
-  padding: 14px 8px 10px;
-  text-align: center;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-  border: 2px solid #E0E0E0;
+.badge-emotion-text {
+  font-size: 0.88em; color: #8B6E5A; line-height: 1.6;
 }
-.badge-medal.unlocked {
-  border-color: #A67B5B;
-  background: #FFFDF7;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+
+/* 故事线分类 Tab */
+.badge-story-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;
+  padding-bottom: 4px; -webkit-overflow-scrolling: touch;
 }
-.badge-medal.unlocked:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+.badge-story-tab {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+  font-size: 0.82em; font-weight: 600; cursor: pointer; user-select: none;
+  background: #F5F0E8; color: var(--brown-light);
+  border: 1px solid transparent; transition: all 0.2s;
 }
-.badge-medal.locked {
-  filter: grayscale(100%);
-  opacity: 0.4;
-  border-style: dashed;
+.badge-story-tab:hover { background: #EDE4D5; }
+.badge-story-tab.active {
+  background: #FFF; color: var(--brown); border-color: #E0C8A0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
-.badge-medal.locked:hover {
-  opacity: 0.55;
+
+/* 勋章墙网格 */
+.badge-wall {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
 }
-.badge-medal-icon {
-  font-size: 2.4em;
-  display: block;
-  margin-bottom: 4px;
-  line-height: 1.2;
+.badge-memento {
+  background: #FFFDF9; border-radius: 16px; padding: 16px 10px 12px;
+  text-align: center; cursor: pointer; user-select: none;
+  border: 1.5px solid #EDE0CC; transition: all 0.25s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
 }
-.badge-medal-name {
-  font-size: 0.82em;
-  font-weight: 700;
-  color: #3E2723;
-  margin-bottom: 2px;
+.badge-memento:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
+.badge-memento.unlocked { }
+.badge-memento.locked {
+  background: #FCFAF7; border: 1.5px dashed #E0D5C5;
+  cursor: default;
 }
-.badge-medal.locked .badge-medal-name {
-  color: #999;
+.badge-memento.locked:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+.badge-memento-icon {
+  font-size: 2.2em; display: block; margin-bottom: 6px; line-height: 1.2;
 }
-.badge-medal-date {
-  font-size: 0.68em;
-  color: #9E9E9E;
+.badge-memento.locked .badge-memento-icon {
+  opacity: 0.45;
 }
-.badge-category-title {
-  font-size: 0.82em;
-  font-weight: 700;
-  color: #5D3A1A;
-  margin: 14px 0 8px;
-  padding-bottom: 4px;
-  border-bottom: 2px dotted rgba(166,123,91,0.5);
-  text-shadow: 0 1px 1px rgba(255,255,255,0.3);
+.badge-memento-name {
+  font-size: 0.85em; font-weight: 700; color: var(--brown); margin-bottom: 3px;
 }
-.badge-category-title:first-of-type {
-  margin-top: 2px;
+.badge-memento.locked .badge-memento-name {
+  color: #B8A494;
 }
-/* 勋章解锁闪耀动画 */
-@keyframes badgeShine {
-  0%   { box-shadow: 0 0 0 0 rgba(166,123,91,0.5); }
-  50%  { box-shadow: 0 0 16px 6px rgba(166,123,91,0.2); }
-  100% { box-shadow: 0 0 0 0 rgba(166,123,91,0); }
+.badge-memento-date {
+  font-size: 0.68em; color: #B8A494;
 }
-.badge-medal.just-unlocked {
-  animation: badgeShine 3s ease-out;
+.badge-memento.locked .badge-memento-date {
+  color: #C8BCAA; font-style: italic;
 }
-/* 勋章解锁 Toast */
+
+/* 空状态 */
+.badge-empty {
+  text-align: center; padding: 32px 16px;
+}
+.badge-empty-icon { font-size: 3em; margin-bottom: 12px; }
+.badge-empty-title {
+  font-size: 1.1em; font-weight: 700; color: var(--brown); margin-bottom: 8px;
+}
+.badge-empty-desc {
+  font-size: 0.88em; color: var(--brown-light); line-height: 1.7;
+  max-width: 340px; margin: 0 auto 18px;
+}
+.badge-empty-foot {
+  margin-top: 12px; font-size: 0.82em; color: var(--muted);
+}
+
+/* 勋章详情弹窗 */
+.badge-detail-card {
+  background: #FFFDF9; border-radius: 20px;
+  padding: 32px 24px 24px; max-width: 380px; width: 92vw;
+  text-align: center; position: relative;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  border: 1px solid #EDE0CC;
+  animation: modalSlideUp 0.35s ease;
+}
+.badge-detail-close {
+  position: absolute; top: 12px; right: 14px;
+  background: none; border: none; font-size: 1.1em; cursor: pointer;
+  color: #B8A494; padding: 4px; font-family: inherit;
+}
+.badge-detail-icon { font-size: 3.5em; margin-bottom: 10px; }
+.badge-detail-name {
+  font-size: 1.2em; font-weight: 700; color: var(--brown); margin-bottom: 10px;
+}
+.badge-detail-story {
+  font-size: 0.9em; color: var(--brown-light); line-height: 1.7;
+  margin-bottom: 12px; padding: 0 4px;
+}
+.badge-detail-date {
+  font-size: 0.82em; color: #B8A494; margin-bottom: 14px;
+}
+.badge-detail-woof {
+  font-size: 0.85em; color: #C98A4B; line-height: 1.6;
+  padding: 10px 14px; background: #FFFBF5; border-radius: 12px;
+  border: 1px solid #F0E0C0; font-style: italic;
+}
+
+/* 勋章解锁 Toast（轻柔版） */
 .badge-unlock-toast {
-  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-  background: #FFFDF7;
-  color: #5D3A1A; padding: 14px 24px; border-radius: 16px;
-  z-index: 10000; font-weight: 700; font-size: 1.05em;
-  box-shadow: 0 6px 24px rgba(166,123,91,0.4);
-  border: 2px solid #A67B5B;
-  animation: toastBounce 0.5s ease-out;
-}
-@keyframes toastBounce {
-  0%   { transform: translateX(-50%) translateY(-80px); opacity: 0; }
-  60%  { transform: translateX(-50%) translateY(8px); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(0); }
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 9999; background: #FFFBF5; border: 1.5px solid #F0D0A0;
+  border-radius: 14px; padding: 10px 22px; font-size: 0.88em; font-weight: 600;
+  color: var(--brown); box-shadow: 0 4px 20px rgba(180,140,100,0.12);
+  animation: fadeIn 0.5s ease; white-space: nowrap;
 }
 
 /* ===== 功能入口标记（保健品角标等）===== */
@@ -5631,21 +5648,61 @@ input[type="file"]::file-selector-button:hover {
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">🎖️ 荣誉勋章</span>
+        <span class="sub-page-title">🏵️ 我们的荣誉小墙</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
-    <div class="card badge-wall-card">
-      <div class="badge-cork-title">🎖️ 已解锁 <span id="badgeUnlockedCount">0</span> 枚勋章</div>
-      <div class="badge-progress-wrap">
-        <div class="badge-progress-bar"><div class="badge-progress-fill" id="badgeProgressBar" style="width:0%;"></div></div>
-        <span class="badge-progress-text" id="badgeProgressText">0%</span>
-      </div>
-      <div class="badge-grid" id="badgeGrid">
-        <div class="skeleton" style="width:60%;"></div>
+
+    <!-- 情绪安抚区 -->
+    <div class="badge-emotion-card" id="badgeEmotionCard">
+      <div class="badge-emotion-inner">
+        <div class="badge-emotion-left">
+          <div class="badge-emotion-avatar" id="badgeEmotionAvatar">🐶</div>
+          <div class="badge-emotion-name" id="badgeEmotionName">正在加载…</div>
+          <div class="badge-emotion-days" id="badgeEmotionDays"></div>
+        </div>
+        <div class="badge-emotion-right">
+          <div class="badge-emotion-count" id="badgeEmotionCount">✨</div>
+          <div class="badge-emotion-text" id="badgeEmotionText">每一枚勋章，都是我们一起认真生活的证据。</div>
+        </div>
       </div>
     </div>
-    <!-- 彩蛋入口（复用原timeline位置的ID） -->
+
+    <!-- 故事线分类区 -->
+    <div class="badge-story-tabs" id="badgeStoryTabs">
+      <span class="badge-story-tab active" data-cat="all">全部</span>
+      <span class="badge-story-tab" data-cat="第一次">🐣 我们的第一次</span>
+      <span class="badge-story-tab" data-cat="守护者">🛡️ 守护者联盟</span>
+      <span class="badge-story-tab" data-cat="健康里程碑">🌱 成长里程碑</span>
+    </div>
+
+    <!-- 勋章墙 -->
+    <div class="badge-wall" id="badgeWall">
+      <div class="skeleton" style="width:60%;"></div>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="badge-empty" id="badgeEmpty" style="display:none;">
+      <div class="badge-empty-icon">🐶📖</div>
+      <div class="badge-empty-title">我们的第一枚小纪念，还在路上</div>
+      <div class="badge-empty-desc">主人不用着急呀。从第一次疫苗、第一次驱虫，到每一次认真照顾我，都会慢慢变成属于我们的小勋章。</div>
+      <button class="btn btn-primary" onclick="navigateTo('record')">📝 记录一次健康事件</button>
+      <div class="badge-empty-foot">按我们的节奏来，就很好。</div>
+    </div>
+
+    <!-- 勋章详情弹窗 -->
+    <div class="modal-overlay" id="badgeDetailOverlay" style="display:none;">
+      <div class="badge-detail-card" id="badgeDetailCard">
+        <button class="badge-detail-close" onclick="closeBadgeDetail()">✕</button>
+        <div class="badge-detail-icon" id="badgeDetailIcon"></div>
+        <div class="badge-detail-name" id="badgeDetailName"></div>
+        <div class="badge-detail-story" id="badgeDetailStory"></div>
+        <div class="badge-detail-date" id="badgeDetailDate"></div>
+        <div class="badge-detail-woof" id="badgeDetailWoof"></div>
+      </div>
+    </div>
+
+    <!-- 彩蛋入口 -->
     <div class="easter-subpage-entry" id="easterEntryTimeline" style="display:none;" onclick="openEasterEgg()">
       <span class="easter-paw">🐾</span>
       <span class="easter-label">发现隐藏彩蛋？</span>
@@ -7874,86 +7931,161 @@ function navigateTo(page) {
 
 // ---- 大事记子页面时间线 ----
 // ---- 荣誉勋章墙 ----
+let _badgeData = null;
+
 async function loadBadgeWall() {
   if (!_cachedDog) return;
   try {
     const data = await api('/api/badges?pet_id=' + _cachedDog.id);
-    const grid = $('badgeGrid');
-    const countEl = $('badgeUnlockedCount');
-    if (countEl) countEl.textContent = data.total_unlocked;
+    _badgeData = data;
 
-    // 更新进度条
-    const total = data.badges.length;
-    const unlocked = data.total_unlocked;
-    const pct = total > 0 ? Math.round(unlocked / total * 100) : 0;
-    const progressBar = $('badgeProgressBar');
-    const progressText = $('badgeProgressText');
-    if (progressBar) { progressBar.style.width = pct + '%'; }
-    if (progressText) { progressText.textContent = pct + '%'; }
+    // 情绪安抚区
+    const emotionCard = $('badgeEmotionCard');
+    const emptyState = $('badgeEmpty');
+    const wall = $('badgeWall');
 
-    if (!grid) return;
-    const categories = data.categories || [];
-    const categoryLabels = {
-      '第一次': '🐣 我们的第一次',
-      '守护者': '🛡️ 我们的守护者',
-      '健康里程碑': '🌟 我们的健康里程碑',
-    };
-    let html = '';
-    categories.forEach(cat => {
-      const catBadges = data.badges.filter(b => b.category === cat);
-      if (catBadges.length === 0) return;
-      html += `<div class="badge-category-title">${categoryLabels[cat] || cat}</div>`;
-      catBadges.forEach(b => {
-        html += `<div class="badge-medal ${b.unlocked ? 'unlocked' : 'locked'}">
-          <span class="badge-medal-icon">${b.icon}</span>
-          <span class="badge-medal-name">${b.name}</span>
-          ${b.unlocked ? `<span class="badge-medal-date">${b.date || ''}</span>` : `<span class="badge-medal-date" style="font-size:0.65em;color:#BDBDBD;">${b.condition}</span>`}
-        </div>`;
-      });
-    });
-    // 下一枚推荐勋章
-    const nextBadge = data.badges.find(b => !b.unlocked);
-    if (nextBadge) {
-      const navHint = getBadgeNavHint(nextBadge.name);
-      html += '<div class="badge-next-card"><div class="badge-next-label">🎯 下一枚推荐勋章</div><div class="badge-next-name">' + nextBadge.icon + ' ' + nextBadge.name + '</div><div class="badge-next-condition">' + nextBadge.condition + '</div>' + (navHint ? '<button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="' + navHint.action + '">' + navHint.label + '</button>' : '') + '</div>';
+    if (data.total_unlocked === 0 && data.badges.length === 0) {
+      if (emotionCard) emotionCard.style.display = 'none';
+      if (wall) wall.style.display = 'none';
+      if (emptyState) emptyState.style.display = '';
+      return;
     }
-    grid.innerHTML = html;
+    if (emotionCard) emotionCard.style.display = '';
+    if (wall) wall.style.display = '';
+    if (emptyState) emptyState.style.display = 'none';
+
+    // 更新情绪区
+    const nameEl = $('badgeEmotionName');
+    if (nameEl) nameEl.textContent = _cachedDog.name || '狗狗';
+    const daysEl = $('badgeEmotionDays');
+    if (daysEl && _cachedDog.created_at) {
+      const companionDays = Math.floor((new Date() - new Date(_cachedDog.created_at)) / (1000 * 60 * 60 * 24));
+      daysEl.textContent = '已经一起走过 ' + companionDays + ' 天啦';
+    }
+    const countEl = $('badgeEmotionCount');
+    if (countEl) countEl.textContent = '✨ 我们已经收集了 ' + data.total_unlocked + ' 枚健康小勋章啦';
+    const textEl = $('badgeEmotionText');
+    if (textEl) textEl.textContent = data.total_unlocked > 0 ? '这些不是比赛的奖牌，是我和主人一起努力生活的回忆。' : '每一枚勋章，都是我们一起认真生活的证据。';
+
+    // 头像
+    if (_cachedDog.photo) {
+      const avatarEl = $('badgeEmotionAvatar');
+      if (avatarEl) avatarEl.innerHTML = '<img src="/photos/' + _cachedDog.photo + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />';
+    }
+
+    // Tab 切换事件
+    document.querySelectorAll('.badge-story-tab').forEach(tab => {
+      tab.onclick = function() {
+        document.querySelectorAll('.badge-story-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        renderBadgeWall(this.dataset.cat);
+      };
+    });
+
+    // 默认渲染全部
+    renderBadgeWall('all');
   } catch (e) {
     console.error('loadBadgeWall error:', e);
   }
 }
 
+function renderBadgeWall(category) {
+  if (!_badgeData || !_badgeData.badges) return;
+  const wall = $('badgeWall');
+  if (!wall) return;
+
+  const categoryNames = {
+    '第一次': '🐣 我们的第一次',
+    '守护者': '🛡️ 守护者联盟',
+    '健康里程碑': '🌱 成长里程碑',
+  };
+
+  // 按分类过滤
+  let badges = _badgeData.badges;
+  if (category && category !== 'all') {
+    badges = badges.filter(b => b.category === category);
+  }
+  if (badges.length === 0) {
+    wall.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-size:0.88em;">这一组的小纪念还在慢慢收集，按我们的节奏来～</div>';
+    return;
+  }
+
+  // 按分类分组渲染
+  let html = '';
+  const categories = category === 'all' ? ['第一次', '守护者', '健康里程碑'] : [category];
+  categories.forEach(cat => {
+    const catBadges = badges.filter(b => b.category === cat);
+    if (catBadges.length === 0) return;
+    if (category === 'all') {
+      html += '<div class="badge-wall-cat-title" style="grid-column:1/-1;font-size:0.88em;font-weight:700;color:var(--brown);margin:4px 0 2px;">' + (categoryNames[cat] || cat) + '</div>';
+    }
+    catBadges.forEach(b => {
+      const dateStr = b.date || '';
+      html += '<div class="badge-memento ' + (b.unlocked ? 'unlocked' : 'locked') + '" ' +
+        (b.unlocked ? 'data-badge-name="' + escHtml(b.name) + '" data-badge-icon="' + b.icon + '" data-badge-date="' + dateStr + '" data-badge-cat="' + b.category + '" onclick="openBadgeDetailFromEl(this)"' : '') + '>' +
+        '<span class="badge-memento-icon">' + b.icon + '</span>' +
+        '<span class="badge-memento-name">' + escHtml(b.name) + '</span>' +
+        '<span class="badge-memento-date">' + (b.unlocked ? dateStr : '未来可期') + '</span>' +
+        '</div>';
+    });
+  });
+  wall.innerHTML = html;
+}
+
+// 勋章详情文案
+const _badgeDetailStories = {
+  '初来乍到':     { story: '我们一起跨进了同一扇家门。从那天起，你就是我的全世界啦。', woof: '主人，谢谢你给了我一个家。我会用摇尾巴把每一天都填满快乐～' },
+  '第一针疫苗':   { story: '我们一起完成了第一针疫苗。那天我可能有一点点紧张，但主人一直陪着我，我就勇敢多啦。', woof: '主人，谢谢你带我去保护自己。我们都是小勇士！' },
+  '第一次驱虫':   { story: '我们一起完成了第一次驱虫，肚肚安心啦。这对我的健康特别重要。', woof: '虽然药药不好吃，但我知道主人是为了让我更健康呀。' },
+  '第一次洗澡':   { story: '我们第一次洗香香！水花四溅，主人也被我甩了一身，但我们都好开心。', woof: '毛蓬蓬的我是不是特别帅气？主人一边吹毛一边夸我呢～' },
+  '到家第一天':   { story: '从那天开始，这里不再只是房子，而是我们的家。', woof: '主人的味道，就是家的味道。从那一天起，我就在心里给主人留了最大的位置。' },
+  '免疫完成':     { story: '我们一起完成了3次疫苗接种，建起了坚固的免疫防线。主人为我的健康操了好多心。', woof: '有主人的守护，我可以放心地探索这个美丽的世界啦！' },
+  '驱虫达标':     { story: '我们完成了6次驱虫，把寄生虫牢牢挡在门外。这是耐心和坚持换来的健康。', woof: '主人的每一次提醒和记录，都是在认真守护我。我都记得哦～' },
+  '洁齿坚持':     { story: '我们一起坚持了30天的牙齿护理。每一次刷牙，都是主人在认真守护我的笑容。', woof: '虽然牙刷有点奇怪，但我知道主人是为了让我更健康呀。' },
+  '肠胃稳定':     { story: '我们度过了连续60天肠胃无恙的安稳日子。从之前的波折到现在的平稳，主人都陪着我。', woof: '肚肚舒舒服服的感觉真好！谢谢主人帮我找到适合我的生活方式～' },
+  '体重管理':     { story: '我们3个月保持了理想体重。这不是数字的变化，是每一天认真喂养和陪伴的结果。', woof: '主人你看，我们一起坚持的每一天，都在我健康的身体上留下了痕迹～' },
+  '生日快乐':     { story: '我们一起吹了生日蜡烛。又长大一岁啦，但主人陪着我，长大就不怕了。', woof: '谢谢主人记得这个特别的日子。我们要一起过好多好多个生日！' },
+  '绝育勇敢':     { story: '我们一起经历了成长的重要一步。那天主人比我还紧张，但我们一起撑过来了。', woof: '恢复期的时候，主人一直在旁边摸我的头。那是我最安心的时刻～' },
+  '百日相伴':     { story: '我们已经互相陪伴了100天。从陌生到熟悉，从小心翼翼到互相信任，这些日子都值得被纪念。', woof: '主人，我已经把这里当成家，也把你当成全世界啦。100天只是一个开始！' },
+  '健康大满贯':   { story: '我们集齐了全部守护者系列勋章！这是主人和我一起完成的一件了不起的事。', woof: '主人你看，我们真的一起做到了好多事呀。每一个勋章都是你爱我的证据～' },
+  '守护之星':     { story: '我们攒下了30个爪印。每一个爪印都是一天认真照护的记录，是主人爱我的痕迹。', woof: '30个爪印，30天被主人认真照顾。我是被爱包围的小狗，谢谢主人一直守护我～' },
+};
+
+function openBadgeDetail(name, icon, dateStr, category) {
+  const overlay = $('badgeDetailOverlay');
+  if (!overlay) return;
+  $('badgeDetailIcon').textContent = icon;
+  $('badgeDetailName').textContent = name;
+  const detail = _badgeDetailStories[name] || { story: '这是我们一起度过的一段美好时光。', woof: '能和主人一起经历这一切，就是我最大的幸福～' };
+  $('badgeDetailStory').textContent = detail.story;
+  $('badgeDetailDate').textContent = dateStr ? '纪念日：' + dateStr : '';
+  $('badgeDetailWoof').textContent = '🐾 ' + detail.woof;
+  overlay.style.display = 'flex';
+}
+
+function closeBadgeDetail() {
+  $('badgeDetailOverlay').style.display = 'none';
+}
+
+function openBadgeDetailFromEl(el) {
+  openBadgeDetail(el.dataset.badgeName, el.dataset.badgeIcon, el.dataset.badgeDate, el.dataset.badgeCat);
+}
+
+$('badgeDetailOverlay')?.addEventListener('click', function(e) {
+  if (e.target === this) closeBadgeDetail();
+});
+
 function showBadgeUnlockToast(badge) {
   if (!badge || !badge.name) return;
   const toast = document.createElement('div');
   toast.className = 'badge-unlock-toast';
-  toast.textContent = `🎉 新勋章解锁！「${badge.name}」${badge.icon}`;
+  toast.textContent = '🐾 汪！我们又多了一枚小纪念——「' + badge.name + '」' + badge.icon + ' 谢谢主人认真照顾我。';
   document.body.appendChild(toast);
-  setTimeout(() => { toast.remove(); }, 3500);
-  // 如果勋章墙可见，刷新
+  setTimeout(() => { toast.remove(); }, 4000);
   const badgePage = $('page-badges');
   if (badgePage && badgePage.style.display !== 'none') {
     loadBadgeWall();
   }
-}
-
-function getBadgeNavHint(badgeName) {
-  const hints = {
-    '第一针疫苗': {label: '📝 记录疫苗', action: "navigateTo('record')"},
-    '第一次驱虫': {label: '📝 记录驱虫', action: "navigateTo('record')"},
-    '第一次洗澡': {label: '📝 记录洗澡', action: "navigateTo('record')"},
-    '到家第一天': {label: '✏️ 设置到家日期', action: "openEditModal()"},
-    '免疫完成': {label: '📝 记录疫苗', action: "navigateTo('record')"},
-    '驱虫达标': {label: '📝 记录驱虫', action: "navigateTo('record')"},
-    '洁齿坚持': {label: '📅 坚持每日签到', action: "navigateTo('home')"},
-    '体重管理': {label: '⚖️ 记录体重', action: "scrollToWeight()"},
-    '绝育勇敢': {label: '✏️ 更新绝育状态', action: "openEditModal()"},
-    '生日快乐': {label: '📅 生日当天签到', action: "navigateTo('home')"},
-    '百日相伴': {label: '📅 继续陪伴', action: "navigateTo('home')"},
-    '健康大满贯': {label: '🎯 解锁守护者系列', action: "navigateTo('badges')"},
-    '守护之星': {label: '🐾 积累爪印', action: "navigateTo('home')"},
-  };
-  return hints[badgeName] || null;
 }
 
 function promptHealthPhotoUpload(eventId, eventType, eventDate) {
