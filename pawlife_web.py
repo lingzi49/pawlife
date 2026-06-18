@@ -6853,23 +6853,20 @@ async function loadCompactGrowth() {
       '</div>';
   }
 
-  // 最近勋章
+  // 最近勋章（已解锁 + 下一枚锁定放同一行）
   try {
     const badgeData = await api('/api/badges?pet_id=' + dog.id);
     const unlocked = badgeData.badges.filter(b => b.unlocked);
-    if (unlocked.length > 0) {
+    const nextLocked = badgeData.badges.find(b => !b.unlocked);
+    if (unlocked.length > 0 || nextLocked) {
       html += '<div class="growth-badges-row">';
       const recentBadges = unlocked.slice(-3).reverse();
       recentBadges.forEach(b => {
         html += '<span class="growth-badge-mini">' + b.icon + ' ' + b.name + '</span>';
       });
-      html += '</div>';
-    }
-    // 下一枚锁定的勋章
-    const nextLocked = badgeData.badges.find(b => !b.unlocked);
-    if (nextLocked) {
-      html += '<div class="growth-badges-row">';
-      html += '<span class="growth-badge-mini locked">🔒 ' + nextLocked.icon + ' ' + nextLocked.name + '</span>';
+      if (nextLocked) {
+        html += '<span class="growth-badge-mini locked">🔒 ' + nextLocked.icon + ' ' + nextLocked.name + '</span>';
+      }
       html += '</div>';
     }
   } catch (e) {}
