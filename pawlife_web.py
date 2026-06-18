@@ -3856,10 +3856,37 @@ body {
 }
 .badge-memento.locked:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
 .badge-memento-icon {
-  font-size: 2.2em; display: block; margin-bottom: 6px; line-height: 1.2;
+  width: 72px; height: 72px; margin: 0 auto 8px; position: relative;
+  border-radius: 50%; overflow: hidden;
+  border: 3px solid #D4A853;
+  box-shadow: 0 0 0 3px #F5E6C8, 0 0 0 5px #D4A853, 0 2px 10px rgba(180,130,50,0.25);
+}
+.badge-memento-icon img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.badge-memento-icon-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 2em; background: linear-gradient(135deg, #F5F0EB, #EDE5DA);
+}
+.badge-memento-icon-badge {
+  position: absolute; bottom: -3px; right: -3px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #FFD54F, #FFA000);
+  border: 2px solid #FFF; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75em; line-height: 1;
 }
 .badge-memento.locked .badge-memento-icon {
-  opacity: 0.45;
+  border-color: #D8CFC0;
+  box-shadow: 0 0 0 3px #F5F1EC, 0 0 0 5px #D8CFC0, 0 1px 6px rgba(0,0,0,0.08);
+}
+.badge-memento.locked .badge-memento-icon-placeholder {
+  background: linear-gradient(135deg, #F8F6F3, #EEEAE4);
+  font-size: 2em; opacity: 0.5;
+}
+.badge-memento.locked .badge-memento-icon-badge {
+  background: linear-gradient(135deg, #E8E4DE, #D0C8BC);
+  border-color: #F0EDE8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .badge-memento-name {
   font-size: 0.85em; font-weight: 700; color: var(--brown); margin-bottom: 3px;
@@ -4512,6 +4539,7 @@ input[type="file"]::file-selector-button:hover {
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.2s;
+  position: relative;
 }
 .timeline-item:hover .timeline-actions { opacity: 1; }
 .timeline-btn {
@@ -4536,10 +4564,17 @@ input[type="file"]::file-selector-button:hover {
   font-weight: 700; letter-spacing: 1px;
 }
 .timeline-menu {
-  position: absolute; right: 0; top: 100%;
+  position: absolute; right: 100%; top: 50%; transform: translateY(-50%);
+  margin-right: 8px;
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   z-index: 50; min-width: 130px; padding: 4px 0;
+}
+@media (max-width: 520px) {
+  .timeline-menu {
+    right: auto; left: 0; top: auto; bottom: 100%;
+    transform: none; margin-right: 0; margin-bottom: 4px;
+  }
 }
 .timeline-menu-item {
   display: block; width: 100%; padding: 8px 14px;
@@ -5478,7 +5513,7 @@ input[type="file"]::file-selector-button:hover {
     <!-- ===== 今日健康检查（主CTA） ===== -->
     <div class="daily-check-card" id="dailyCheckCard">
       <div class="daily-check-header">
-        <span class="daily-check-icon">🩺</span>
+        <span class="daily-check-icon" id="dailyCheckIcon">🩺</span>
         <span class="daily-check-title">今日健康检查</span>
         <span class="daily-check-badge" id="dailyCheckBadge" style="display:none;">✅ 已完成</span>
       </div>
@@ -6488,6 +6523,24 @@ async function loadStatusBarStreak() {
   } catch (e) {}
 }
 
+const _dailyCheckPrompts = [
+  { icon: '🩺', title: '全身快检', desc: '用 1 分钟轻轻摸摸<span class="pet-name-inline">狗狗</span>的头部、背部、四肢和腹部，确认是否有硬块、红肿、脱毛或异常发热。' },
+  { icon: '🦷', title: '口腔检查', desc: '翻开<span class="pet-name-inline">狗狗</span>的嘴唇，看看牙龈颜色是否粉红、有没有牙结石或口臭加重的情况。' },
+  { icon: '👂', title: '耳朵检查', desc: '闻一闻<span class="pet-name-inline">狗狗</span>的耳朵，看看有没有异味、分泌物或者频繁甩头、挠耳朵的行为。' },
+  { icon: '🐾', title: '爪爪检查', desc: '检查<span class="pet-name-inline">狗狗</span>的爪垫是否干裂、指甲是否过长、趾间有没有红肿或异物。' },
+  { icon: '👁️', title: '眼睛检查', desc: '看看<span class="pet-name-inline">狗狗</span>的眼睛是否清澈明亮，有没有分泌物增多、发红或者频繁眯眼的情况。' },
+  { icon: '✨', title: '毛发皮肤检查', desc: '逆着毛发方向轻轻拨开<span class="pet-name-inline">狗狗</span>的毛，检查底层皮肤有没有皮屑、红点、寄生虫或异常脱毛。' },
+  { icon: '👃', title: '鼻子观察', desc: '观察<span class="pet-name-inline">狗狗</span>的鼻子是否湿润（不是越湿越好哦），有没有异常分泌物或颜色变化。' },
+  { icon: '💩', title: '排便观察', desc: '今天遛<span class="pet-name-inline">狗狗</span>时留意一下便便的形状、颜色和气味，是否成型、有无异物或寄生虫。' },
+];
+
+function getDailyCheckPrompt() {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
+  return _dailyCheckPrompts[dayOfYear % _dailyCheckPrompts.length];
+}
+
 async function loadDailyCheckStatus() {
   try {
     const data = await api('/api/daily_check?pet_id=' + (_cachedDog?.id || 1));
@@ -6495,6 +6548,7 @@ async function loadDailyCheckStatus() {
     const completed = $('dailyCheckCompleted');
     const badge = $('dailyCheckBadge');
     const desc = $('dailyCheckDesc');
+    const icon = $('dailyCheckIcon');
     if (data.done) {
       if (actions) actions.style.display = 'none';
       if (badge) badge.style.display = '';
@@ -6508,10 +6562,12 @@ async function loadDailyCheckStatus() {
       if (completed) completed.style.display = 'none';
       if (badge) badge.style.display = 'none';
       if (desc) desc.style.opacity = '1';
-      // 更新描述中的狗狗名字
+      // 旋转每日检查项目
+      const prompt = getDailyCheckPrompt();
       if (desc && _cachedDog) {
-        desc.innerHTML = desc.innerHTML.replace(/<span class="pet-name-inline">[^<]*<\/span>/, '<span class="pet-name-inline">' + escHtml(_cachedDog.name) + '</span>');
+        desc.innerHTML = prompt.desc.replace('<span class="pet-name-inline">狗狗</span>', '<span class="pet-name-inline">' + escHtml(_cachedDog.name) + '</span>');
       }
+      if (icon) icon.textContent = prompt.icon;
     }
   } catch (e) {}
 }
@@ -8021,9 +8077,28 @@ function renderBadgeWall(category) {
     }
     catBadges.forEach(b => {
       const dateStr = b.date || '';
+      // 已解锁勋章用照片 + 勋章框，未解锁用灰色占位符
+      let iconHtml = '';
+      if (b.unlocked && _cachedDog && _cachedDog.photo) {
+        iconHtml = '<div class="badge-memento-icon">' +
+          '<img src="/photos/' + _cachedDog.photo + '" alt="' + escHtml(b.name) + '" />' +
+          '<span class="badge-memento-icon-badge">' + b.icon + '</span>' +
+          '</div>';
+      } else if (b.unlocked) {
+        // 有头像但还没上传照片
+        iconHtml = '<div class="badge-memento-icon">' +
+          '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
+          '<span class="badge-memento-icon-badge">🐾</span>' +
+          '</div>';
+      } else {
+        iconHtml = '<div class="badge-memento-icon">' +
+          '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
+          '<span class="badge-memento-icon-badge">🔒</span>' +
+          '</div>';
+      }
       html += '<div class="badge-memento ' + (b.unlocked ? 'unlocked' : 'locked') + '" ' +
         (b.unlocked ? 'data-badge-name="' + escHtml(b.name) + '" data-badge-icon="' + b.icon + '" data-badge-date="' + dateStr + '" data-badge-cat="' + b.category + '" onclick="openBadgeDetailFromEl(this)"' : '') + '>' +
-        '<span class="badge-memento-icon">' + b.icon + '</span>' +
+        iconHtml +
         '<span class="badge-memento-name">' + escHtml(b.name) + '</span>' +
         '<span class="badge-memento-date">' + (b.unlocked ? dateStr : '未来可期') + '</span>' +
         '</div>';
