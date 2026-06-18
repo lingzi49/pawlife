@@ -3397,54 +3397,70 @@ body {
   text-align: center; font-size: 0.88em; margin-right: 4px;
 }
 
-/* ===== 今日健康检查（主CTA） ===== */
+/* ===== 今日健康检查 ===== */
 .daily-check-card {
   background: linear-gradient(135deg, #FFF8F0, #FFFDF7);
   border: 2px solid var(--orange);
   border-radius: var(--radius);
-  padding: 18px 18px 14px;
-  margin-bottom: 16px;
+  padding: 13px 16px 10px;
+  margin-bottom: 14px;
   box-shadow: 0 3px 16px rgba(255,138,0,0.12);
+  transition: padding 0.3s, margin 0.3s;
 }
+.daily-check-card.collapsed { padding: 10px 16px; }
 .daily-check-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
 }
-.daily-check-icon { font-size: 1.5em; }
-.daily-check-title { font-size: 1.1em; font-weight: 700; color: var(--brown); }
+.daily-check-icon { font-size: 1.3em; }
+.daily-check-title { font-size: 1em; font-weight: 700; color: var(--brown); }
 .daily-check-badge {
-  margin-left: auto; font-size: 0.78em; font-weight: 600;
-  background: var(--green); color: #fff; padding: 3px 10px; border-radius: 12px;
+  margin-left: auto; font-size: 0.72em; font-weight: 600;
+  background: var(--green); color: #fff; padding: 2px 8px; border-radius: 10px;
 }
+.daily-check-toggle {
+  margin-left: 4px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--card);
+  cursor: pointer; font-size: 0.7em; color: var(--brown-light);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.25s; padding: 0; line-height: 1;
+}
+.daily-check-toggle.open { transform: rotate(180deg); }
+.daily-check-body { transition: opacity 0.25s, max-height 0.3s; overflow: hidden; }
+.daily-check-body.hidden { max-height: 0; opacity: 0; margin: 0; }
 .daily-check-desc {
-  font-size: 0.88em; color: var(--brown-light); line-height: 1.7; margin-bottom: 14px;
+  font-size: 0.83em; color: var(--brown-light); line-height: 1.6; margin-bottom: 10px;
 }
 .pet-name-inline { font-weight: 700; color: var(--brown); }
 .daily-check-actions {
-  display: flex; gap: 10px; margin-bottom: 10px;
+  display: flex; gap: 8px; margin-bottom: 8px;
 }
 .btn-check-ok {
-  flex: 1; padding: 13px 16px; border: none; border-radius: var(--radius);
+  flex: 1; padding: 10px 14px; border: none; border-radius: var(--radius);
   background: linear-gradient(135deg, var(--orange), #FFB74D);
-  color: #fff; font-size: 1em; font-weight: 700; cursor: pointer;
+  color: #fff; font-size: 0.92em; font-weight: 700; cursor: pointer;
   font-family: inherit; transition: all 0.2s;
-  box-shadow: 0 3px 12px rgba(255,138,0,0.2);
+  box-shadow: 0 2px 8px rgba(255,138,0,0.18);
 }
-.btn-check-ok:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(255,138,0,0.3); }
+.btn-check-ok:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(255,138,0,0.28); }
 .btn-check-ok:active { transform: scale(0.97); }
 .btn-check-warn {
-  flex: 1; padding: 13px 16px; border: 2px solid var(--red); border-radius: var(--radius);
-  background: transparent; color: var(--red); font-size: 1em; font-weight: 600;
+  flex: 1; padding: 10px 14px; border: 2px solid var(--red); border-radius: var(--radius);
+  background: transparent; color: var(--red); font-size: 0.92em; font-weight: 600;
   cursor: pointer; font-family: inherit; transition: all 0.2s;
 }
 .btn-check-warn:hover { background: #FFF5F5; border-color: #C62828; }
 .btn-check-warn:active { transform: scale(0.97); }
 .daily-check-completed {
-  text-align: center; padding: 12px; margin-bottom: 8px;
+  text-align: center; padding: 8px 10px; margin-bottom: 6px;
   background: #E8F5E9; border-radius: var(--radius-sm);
-  font-size: 0.92em; font-weight: 600; color: #2E7D32;
+  font-size: 0.85em; font-weight: 600; color: #2E7D32;
 }
 .daily-check-note {
-  font-size: 0.76em; color: var(--muted); text-align: center;
+  font-size: 0.72em; color: var(--muted); text-align: center;
+}
+.daily-check-collapsed {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.88em; font-weight: 600; color: #2E7D32;
 }
 
 /* ===== 首页功能入口网格 ===== */
@@ -5559,16 +5575,20 @@ input[type="file"]::file-selector-button:hover {
         <span class="daily-check-icon" id="dailyCheckIcon">🩺</span>
         <span class="daily-check-title">今日健康检查</span>
         <span class="daily-check-badge" id="dailyCheckBadge" style="display:none;">✅ 已完成</span>
+        <button class="daily-check-toggle" id="dailyCheckToggle" onclick="toggleDailyCheck()" title="展开/收起" style="display:none;">▼</button>
       </div>
-      <div class="daily-check-desc" id="dailyCheckDesc">
-        用 1 分钟轻轻摸摸<span class="pet-name-inline">狗狗</span>的头部、背部、四肢和腹部，确认是否有硬块、红肿、脱毛或异常发热。
+      <div class="daily-check-collapsed" id="dailyCheckCollapsed" style="display:none;"></div>
+      <div class="daily-check-body" id="dailyCheckBody">
+        <div class="daily-check-desc" id="dailyCheckDesc">
+          用 1 分钟轻轻摸摸<span class="pet-name-inline">狗狗</span>的头部、背部、四肢和腹部，确认是否有硬块、红肿、脱毛或异常发热。
+        </div>
+        <div class="daily-check-actions" id="dailyCheckActions">
+          <button class="btn btn-check-ok" id="btnCheckOk" onclick="recordDailyCheck('normal')">✅ 一切正常</button>
+          <button class="btn btn-check-warn" id="btnCheckWarn" onclick="recordDailyCheck('abnormal')">⚠️ 发现异常</button>
+        </div>
+        <div class="daily-check-completed" id="dailyCheckCompleted" style="display:none;"></div>
+        <div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>
       </div>
-      <div class="daily-check-actions" id="dailyCheckActions">
-        <button class="btn btn-check-ok" id="btnCheckOk" onclick="recordDailyCheck('normal')">✅ 一切正常</button>
-        <button class="btn btn-check-warn" id="btnCheckWarn" onclick="recordDailyCheck('abnormal')">⚠️ 发现异常</button>
-      </div>
-      <div class="daily-check-completed" id="dailyCheckCompleted" style="display:none;"></div>
-      <div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>
     </div>
 
     <!-- 功能入口：4 列网格，主功能跨 2 列 -->
@@ -6586,20 +6606,48 @@ async function loadDailyCheckStatus() {
     const badge = $('dailyCheckBadge');
     const desc = $('dailyCheckDesc');
     const icon = $('dailyCheckIcon');
+    const toggle = $('dailyCheckToggle');
+    const collapsedEl = $('dailyCheckCollapsed');
+    const body = $('dailyCheckBody');
+    const card = $('dailyCheckCard');
     if (data.done) {
       if (actions) actions.style.display = 'none';
       if (badge) badge.style.display = '';
+      if (toggle) toggle.style.display = '';
       if (completed) {
         completed.style.display = '';
         completed.innerHTML = '✅ 今日健康检查已完成！' + (data.result === 'normal' ? '一切正常，' + (_cachedDog?.name || '狗狗') + '今天也很健康～' : '已记录异常，请注意观察。');
       }
       if (desc) desc.style.opacity = '0.6';
+      if (collapsedEl) {
+        collapsedEl.style.display = '';
+        collapsedEl.innerHTML = data.result === 'normal' ? '✅ 今日检查已完成 · 一切正常' : '⚠️ 今日检查已完成 · 已记录异常';
+      }
+      const today = new Date().toDateString();
+      const storedDate = sessionStorage.getItem('dailyCheckDoneDate');
+      if (storedDate !== today) {
+        sessionStorage.setItem('dailyCheckDoneDate', today);
+        sessionStorage.setItem('dailyCheckCollapsed', '1');
+      }
+      const shouldCollapse = sessionStorage.getItem('dailyCheckCollapsed') !== '0';
+      if (shouldCollapse) {
+        if (card) card.classList.add('collapsed');
+        if (body) body.classList.add('hidden');
+        if (toggle) toggle.classList.remove('open');
+      } else {
+        if (card) card.classList.remove('collapsed');
+        if (body) body.classList.remove('hidden');
+        if (toggle) toggle.classList.add('open');
+      }
     } else {
       if (actions) actions.style.display = '';
       if (completed) completed.style.display = 'none';
       if (badge) badge.style.display = 'none';
+      if (toggle) toggle.style.display = 'none';
+      if (collapsedEl) collapsedEl.style.display = 'none';
       if (desc) desc.style.opacity = '1';
-      // 旋转每日检查项目
+      if (card) card.classList.remove('collapsed');
+      if (body) body.classList.remove('hidden');
       const prompt = getDailyCheckPrompt();
       if (desc && _cachedDog) {
         desc.innerHTML = prompt.desc.replace('<span class="pet-name-inline">狗狗</span>', '<span class="pet-name-inline">' + escHtml(_cachedDog.name) + '</span>');
@@ -6637,7 +6685,7 @@ async function loadPendingCount() {
         }
       }
     } else {
-      pendingEl.innerHTML = '✨ ' + escHtml(name) + '今天所有健康任务都完成啦，太棒了！';
+      pendingEl.innerHTML = '';
       const reminderEl = $('tdReminder');
       if (reminderEl) reminderEl.textContent = '';
     }
@@ -6655,22 +6703,34 @@ async function recordDailyCheck(result) {
       return;
     }
     showToast(data.message || '健康检查记录成功！');
-    // 更新UI
     const actions = $('dailyCheckActions');
     const completed = $('dailyCheckCompleted');
     const badge = $('dailyCheckBadge');
     const desc = $('dailyCheckDesc');
+    const toggle = $('dailyCheckToggle');
+    const collapsedEl = $('dailyCheckCollapsed');
+    const body = $('dailyCheckBody');
+    const card = $('dailyCheckCard');
     if (actions) actions.style.display = 'none';
     if (badge) badge.style.display = '';
+    if (toggle) toggle.style.display = '';
     if (completed) {
       completed.style.display = '';
-      completed.innerHTML = '✅ 今日健康检查已完成！' + (result === 'normal' ? '一切正常，' + (_cachedDog?.name || '狗狗') + '今天也很健康～' : '已记录异常，建议前往"添加健康记录"补充详细信息。');
+      completed.innerHTML = '✅ 今日健康检查已完成！' + (result === 'normal' ? '一切正常，' + (_cachedDog?.name || '狗狗') + '今天也很健康～' : '已记录异常，建议前往“添加健康记录”补充详细信息。');
     }
     if (desc) desc.style.opacity = '0.6';
-    // 更新爪印和待办计数
+    if (collapsedEl) {
+      collapsedEl.style.display = '';
+      collapsedEl.innerHTML = result === 'normal' ? '✅ 今日检查已完成 · 一切正常' : '⚠️ 今日检查已完成 · 已记录异常';
+    }
+    if (body) body.classList.add('hidden');
+    if (card) card.classList.add('collapsed');
+    if (toggle) toggle.classList.remove('open');
+    const today = new Date().toDateString();
+    sessionStorage.setItem('dailyCheckDoneDate', today);
+    sessionStorage.setItem('dailyCheckCollapsed', '1');
     if (_cachedDog) { _cachedDog.paw_points = data.paw_points; }
     updateTodayDashboard(_cachedDog, calcAge(_cachedDog?.birthday));
-    // 如果发现异常，引导记录
     if (result === 'abnormal') {
       setTimeout(() => {
         if (confirm('需要记录详细的异常情况吗？')) {
@@ -6686,6 +6746,29 @@ async function recordDailyCheck(result) {
     showToast('记录失败，请稍后再试');
   }
 }
+
+function toggleDailyCheck() {
+  const card = $('dailyCheckCard');
+  const body = $('dailyCheckBody');
+  const toggle = $('dailyCheckToggle');
+  const collapsedEl = $('dailyCheckCollapsed');
+  if (!card || !body || !toggle) return;
+  const isCollapsed = body.classList.contains('hidden');
+  if (isCollapsed) {
+    body.classList.remove('hidden');
+    card.classList.remove('collapsed');
+    toggle.classList.add('open');
+    if (collapsedEl) collapsedEl.style.display = 'none';
+    sessionStorage.setItem('dailyCheckCollapsed', '0');
+  } else {
+    body.classList.add('hidden');
+    card.classList.add('collapsed');
+    toggle.classList.remove('open');
+    if (collapsedEl) collapsedEl.style.display = '';
+    sessionStorage.setItem('dailyCheckCollapsed', '1');
+  }
+}
+
 
 async function loadProfile() {
   const hpInner = $('hpCardInner');
