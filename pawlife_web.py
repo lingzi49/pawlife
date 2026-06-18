@@ -4906,10 +4906,18 @@ input[type="file"]::file-selector-button:hover {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 12px 40px rgba(0,0,0,0.18);
   border: 1px solid var(--border);
   animation: modalSlideUp 0.35s ease;
+  scrollbar-width: thin;
+  scrollbar-color: #D4B896 #F5EDE4;
 }
+.modal-card::-webkit-scrollbar { width: 6px; }
+.modal-card::-webkit-scrollbar-track { background: #F5EDE4; border-radius: 3px; }
+.modal-card::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 3px; }
+.modal-card::-webkit-scrollbar-thumb:hover { background: #B8956E; }
 @keyframes modalSlideUp {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
@@ -4919,6 +4927,7 @@ input[type="file"]::file-selector-button:hover {
   position: relative;
   text-align: center;
   margin-bottom: 18px;
+  flex-shrink: 0;
 }
 .modal-logo { font-size: 2.8em; margin-bottom: 4px; }
 .modal-header h2 {
@@ -4932,9 +4941,18 @@ input[type="file"]::file-selector-button:hover {
   line-height: 1.6;
 }
 
-.modal-body { margin-bottom: 16px; }
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
-.modal-footer { text-align: center; }
+.modal-footer {
+  text-align: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+}
 
 .btn-lg { padding: 12px 28px; font-size: 1.05em; }
 
@@ -5466,7 +5484,7 @@ input[type="file"]::file-selector-button:hover {
   .checkbox-group label { padding: 5px 8px; font-size: 0.8em; }
 
   /* 弹窗更紧凑 */
-  .modal-card { padding: 16px 10px 12px; }
+  .modal-card { padding: 16px 10px 14px; }
 
   /* 按钮更易点击 */
   .btn { min-height: 40px; }
@@ -5570,9 +5588,7 @@ input[type="file"]::file-selector-button:hover {
           <span class="td-streak" id="statusStreak" style="display:none;"></span>
         </div>
       </div>
-      <div class="today-pending" id="todayPending">
-        <div class="skeleton" style="width:60%;height:18px;margin:4px 0;"></div>
-      </div>
+      <div class="today-pending" id="todayPending" style="display:none;"></div>
     </div>
 
     <!-- ===== 今日健康检查（主CTA） ===== -->
@@ -5899,7 +5915,7 @@ input[type="file"]::file-selector-button:hover {
 </div>
 
 <!-- ===== 日期选择器弹窗 ===== -->
-<div class="modal-overlay" id="datePickerOverlay" style="display:none;">
+<div class="modal-overlay" id="datePickerOverlay" style="display:none;z-index:1100;">
   <div class="date-picker-container" id="datePickerContainer">
     <!-- 第一层：单月日历 -->
     <div class="dp-layer" id="dpLayerMonth">
@@ -5962,7 +5978,6 @@ input[type="file"]::file-selector-button:hover {
       <div class="form-row">
         <div class="form-col"><label>我的生日 <span class="required">*</span></label>
           <input type="text" id="eBirthday" readonly placeholder="点击选择生日" style="width:100%;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('eBirthday')" />
-          </div>
         </div>
       </div>
       <div class="form-row">
@@ -5986,10 +6001,10 @@ input[type="file"]::file-selector-button:hover {
           <input type="file" id="ePhoto" accept="image/jpeg,image/png" />
         </div>
       </div>
-    </div>
-    <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-outline" id="btnEditCancel">取消</button>
-      <button class="btn btn-primary" id="btnEditSave">💾 保存更新</button>
+      <div style="display:flex;gap:12px;justify-content:center;padding-top:16px;border-top:1px solid var(--border);margin-top:4px;padding-bottom:4px;">
+        <button class="btn btn-outline" id="btnEditCancel">取消</button>
+        <button class="btn btn-primary" id="btnEditSave">保存</button>
+      </div>
     </div>
   </div>
 </div>
@@ -6550,7 +6565,6 @@ function updateTodayDashboard(dog, age) {
   loadStatusBarStreak();
   loadStatusBarRecent();
   loadDailyCheckStatus();
-  loadPendingCount();
 }
 
 async function loadStatusBarRecent() {
@@ -6882,16 +6896,23 @@ function loadHealthSnapshot(dog) {
     insights.push({ icon: '🐶', text: '幼犬阶段（' + ageMonths + '月龄），暂无需考虑绝育。' });
   }
 
-  // 如果没有特殊事项，显示一个正面总结
-  if (insights.length <= 1 && dog.weight && dog.weight.trim()) {
-    insights.push({ icon: '💚', text: '狗狗基础健康信息齐全，主人真贴心～继续做好日常照护吧！' });
+  // 温和引导：对缺失的关键信息给出完善提示
+  if (!dog.allergies || !dog.allergies.trim()) {
+    insights.push({ icon: '📋', text: '还没记录过敏源，补充后可避免推荐含过敏成分的食材。', action: '去填写', target: '#edit' });
+  }
+  if (!dog.neutered || dog.neutered === '未知') {
+    insights.push({ icon: '💡', text: '补充绝育状态可让营养计算更精准。', action: '去填写', target: '#edit' });
+  }
+  if (!dog.diseases || !dog.diseases.trim()) {
+    insights.push({ icon: '📋', text: '记录已知健康状况，饮食和保健品建议会更安全。', action: '去填写', target: '#edit' });
   }
 
   // 渲染快照
   let html = '';
   insights.forEach(item => {
     if (item.action) {
-      html += '<div class="hp-insight"><span class="hp-insight-icon">' + item.icon + '</span><span class="hp-insight-text">' + escHtml(item.text) + ' <a class="hp-insight-action" onclick="navigateTo(\'' + item.target + '\')">' + item.action + ' →</a></span></div>';
+      const clickAction = item.target === '#edit' ? 'openEditModal()' : ("navigateTo('" + item.target + "')");
+      html += '<div class="hp-insight"><span class="hp-insight-icon">' + item.icon + '</span><span class="hp-insight-text">' + escHtml(item.text) + ' <a class="hp-insight-action" onclick="' + clickAction + '">' + item.action + ' →</a></span></div>';
     } else {
       html += '<div class="hp-insight"><span class="hp-insight-icon">' + item.icon + '</span><span class="hp-insight-text">' + escHtml(item.text) + '</span></div>';
     }
@@ -6942,12 +6963,6 @@ async function loadCompactGrowth() {
         '</div>';
     });
     html += '</div>';
-  } else {
-    html += '<div class="growth-photos-row">' +
-      '<div class="growth-photo-thumb-placeholder">📸</div>' +
-      '<div class="growth-photo-thumb-placeholder">📸</div>' +
-      '<div class="growth-photo-thumb-placeholder">📸</div>' +
-      '</div>';
   }
 
   // 最近勋章（已解锁 + 下一枚锁定放同一行）
@@ -7287,7 +7302,7 @@ function calcAge(birthStr) {
   const birth = new Date(birthStr);
   const now = new Date();
   const months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
-  if (months < 1) return '小奶狗';
+  if (months < 1) return '未满月';
   if (months < 12) return `${months}个月大`;
   const years = Math.floor(months / 12);
   const remainMonths = months % 12;
@@ -7398,7 +7413,6 @@ async function loadDietCard() {
       </div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
         <button class="btn btn-secondary btn-sm" onclick="scrollToWeight()">⚖️ 更新体重重新计算</button>
-        <button class="btn btn-primary btn-sm" id="btnRecordFed">✅ 记录已喂食</button>
       </div>
       <div class="diet-basis-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
         📐 为什么是 ${data.total_weight}g ？点击查看计算依据 ▼
