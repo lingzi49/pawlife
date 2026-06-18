@@ -3400,11 +3400,11 @@ body {
 /* ===== 今日健康检查 ===== */
 .daily-check-card {
   background: linear-gradient(135deg, #FFF8F0, #FFFDF7);
-  border: 2px solid var(--orange);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 13px 16px 10px;
   margin-bottom: 14px;
-  box-shadow: 0 3px 16px rgba(255,138,0,0.12);
+  box-shadow: var(--shadow);
   transition: padding 0.3s, margin 0.3s;
 }
 .daily-check-card.collapsed { padding: 10px 16px; }
@@ -3583,14 +3583,14 @@ body {
   display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;
 }
 .growth-photo-thumb {
-  width: calc((100% - 12px) / 3); min-width: 70px; aspect-ratio: 1;
+  width: calc((100% - 30px) / 6); min-width: 55px; aspect-ratio: 3 / 4;
   border-radius: 10px; overflow: hidden; border: 2px solid var(--border);
   cursor: pointer; transition: transform 0.2s;
 }
 .growth-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .growth-photo-thumb:hover { transform: scale(1.05); border-color: var(--orange); }
 .growth-photo-thumb-placeholder {
-  width: calc((100% - 12px) / 3); min-width: 70px; aspect-ratio: 1;
+  width: calc((100% - 30px) / 6); min-width: 55px; aspect-ratio: 3 / 4;
   border-radius: 10px; border: 2px dashed var(--border);
   display: flex; align-items: center; justify-content: center;
   font-size: 1.4em; color: var(--muted); background: #FDFBF7;
@@ -5305,8 +5305,8 @@ input[type="file"]::file-selector-button:hover {
   .badge-grid { grid-template-columns: repeat(5, 1fr); }
   .quick-record-grid { grid-template-columns: repeat(4, 1fr); }
   .growth-photos-row { gap: 10px; }
-  .growth-photo-thumb { width: calc((100% - 30px) / 4); min-width: 100px; }
-  .growth-photo-thumb-placeholder { width: calc((100% - 30px) / 4); min-width: 100px; }
+  .growth-photo-thumb { width: calc((100% - 30px) / 6); min-width: 55px; }
+  .growth-photo-thumb-placeholder { width: calc((100% - 30px) / 6); min-width: 55px; }
 }
 
 /* ===== 响应式：移动端适配 ===== */
@@ -5343,8 +5343,8 @@ input[type="file"]::file-selector-button:hover {
   .health-profile-card { padding: 12px 12px; }
 
   /* 成长记录 */
-  .growth-photo-thumb { min-width: 60px; }
-  .growth-photo-thumb-placeholder { min-width: 60px; }
+  .growth-photo-thumb { width: calc((100% - 10px) / 3); min-width: 48px; }
+  .growth-photo-thumb-placeholder { width: calc((100% - 10px) / 3); min-width: 48px; }
 
   /* 卡片 */
   .card { padding: 14px 12px; margin-bottom: 10px; }
@@ -6919,7 +6919,7 @@ async function loadCompactGrowth() {
   const healthPhotos = dog.health_photos || [];
   if (healthPhotos.length > 0) {
     html += '<div class="growth-photos-row">';
-    const recentPhotos = healthPhotos.slice(-3).reverse();
+    const recentPhotos = healthPhotos.slice(-6).reverse();
     recentPhotos.forEach(p => {
       const src = p.filename ? ('/photos/' + p.filename) : '';
       const label = p.label || p.event_type || '';
