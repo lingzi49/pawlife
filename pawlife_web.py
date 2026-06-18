@@ -3450,9 +3450,10 @@ body {
 /* ===== 首页功能入口网格 ===== */
 /* 第一行：2 列主功能卡片 */
 .quick-record-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin-top: 12px; margin-bottom: 8px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;
+  margin-top: 12px; margin-bottom: 16px;
 }
+.qr-span-2 { grid-column: span 2; }
 .quick-record-card {
   background: var(--card); border-radius: var(--radius);
   padding: 14px 12px; text-align: center; cursor: pointer;
@@ -3491,7 +3492,7 @@ body {
 .qr-icon-sm { font-size: 1.5em; display: block; margin-bottom: 3px; }
 .qr-label-sm { font-size: 0.82em; font-weight: 700; color: var(--brown); display: block; }
 @media (max-width: 520px) {
-  .quick-record-grid-sm { grid-template-columns: 1fr 1fr; }
+  .quick-record-grid { grid-template-columns: 1fr 1fr; }
 }
 
 .btn-secondary {
@@ -5570,21 +5571,18 @@ input[type="file"]::file-selector-button:hover {
       <div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>
     </div>
 
-    <!-- 第一行：2 个主功能 -->
+    <!-- 功能入口：4 列网格，主功能跨 2 列 -->
     <div class="quick-record-grid">
-      <div class="quick-record-card" onclick="navigateTo('record')">
+      <div class="quick-record-card qr-span-2" onclick="navigateTo('record')">
         <span class="qr-icon">📝</span>
         <span class="qr-label">记录健康事件</span>
         <span class="qr-hint">疫苗、驱虫、异常，事事有迹可循</span>
       </div>
-      <div class="quick-record-card" onclick="navigateTo('diet')">
+      <div class="quick-record-card qr-span-2" onclick="navigateTo('diet')">
         <span class="qr-icon">🍖</span>
         <span class="qr-label">饮食指导</span>
         <span class="qr-hint">按品种、年龄和体重量身推荐</span>
       </div>
-    </div>
-    <!-- 第二行：4 个辅功能 -->
-    <div class="quick-record-grid-sm">
       <div class="quick-record-card-sm" onclick="navigateTo('weight')">
         <span class="qr-icon-sm">⚖️</span>
         <span class="qr-label-sm">体重管理</span>
