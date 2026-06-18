@@ -3451,7 +3451,7 @@ body {
 /* 第一行：2 列主功能卡片 */
 .quick-record-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin-bottom: 8px;
+  margin-top: 12px; margin-bottom: 8px;
 }
 .quick-record-card {
   background: var(--card); border-radius: var(--radius);
@@ -3529,7 +3529,7 @@ body {
 /* ===== 健康档案卡 ===== */
 .health-profile-card {
   background: var(--card); border-radius: var(--radius);
-  padding: 16px 18px; margin-bottom: 16px;
+  padding: 16px 18px; margin-top: 12px; margin-bottom: 16px;
   box-shadow: var(--shadow); border: 1px solid var(--border);
 }
 .hp-card-inner { }
@@ -5570,8 +5570,6 @@ input[type="file"]::file-selector-button:hover {
       <div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>
     </div>
 
-    <!-- ===== 汪汪日常 ===== -->
-    <div class="section-label">🐶 汪汪日常</div>
     <!-- 第一行：2 个主功能 -->
     <div class="quick-record-grid">
       <div class="quick-record-card" onclick="navigateTo('record')">
@@ -5608,7 +5606,6 @@ input[type="file"]::file-selector-button:hover {
     </div>
 
     <!-- ===== 健康档案卡 ===== -->
-    <div class="section-label">📋 健康档案</div>
     <div class="health-profile-card" id="healthProfileCard">
       <div class="hp-card-inner" id="hpCardInner" style="display:none;">
         <div class="hp-card-header" id="hpCardHeader" style="display:none;">
