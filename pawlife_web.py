@@ -3923,12 +3923,14 @@ body {
 }
 .badge-memento-name {
   font-size: 0.85em; font-weight: 700; color: var(--brown); margin-bottom: 3px;
+  display: block;
 }
 .badge-memento.locked .badge-memento-name {
   color: #B8A494;
 }
 .badge-memento-date {
   font-size: 0.68em; color: #B8A494;
+  display: block;
 }
 .badge-memento.locked .badge-memento-date {
   color: #C8BCAA; font-style: italic;
@@ -5562,7 +5564,7 @@ input[type="file"]::file-selector-button:hover {
     </div>
 
     <!-- ===== 快速记录区 ===== -->
-    <div class="section-label">📋 快速记录</div>
+    <div class="section-label">🐶 汪汪日常</div>
     <div class="quick-record-grid">
       <div class="quick-record-card" onclick="navigateTo('record')">
         <span class="qr-icon">📝</span>
