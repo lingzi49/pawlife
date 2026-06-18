@@ -3884,8 +3884,11 @@ body {
   cursor: default;
 }
 .badge-memento.locked:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+.badge-memento-photo-area {
+  position: relative; display: inline-block; margin: 0 auto 8px;
+}
 .badge-memento-icon {
-  width: 72px; height: 72px; margin: 0 auto 6px; position: relative;
+  width: 72px; height: 72px;
   border-radius: 50%; overflow: hidden;
   border: 3px solid #D4A853;
   box-shadow: 0 0 0 3px #F5E6C8, 0 0 0 5px #D4A853, 0 2px 10px rgba(180,130,50,0.25);
@@ -3898,7 +3901,7 @@ body {
   font-size: 2em; background: linear-gradient(135deg, #F5F0EB, #EDE5DA);
 }
 .badge-memento-pin {
-  position: absolute; top: 12px; right: 12px;
+  position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
   width: 24px; height: 24px; border-radius: 50%;
   background: linear-gradient(135deg, #FFD54F, #FFA000);
   border: 2px solid #FFF; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
@@ -8111,20 +8114,26 @@ function renderBadgeWall(category) {
       const badgePhoto = b.photo || (_cachedDog && _cachedDog.photo) || null;
       let iconHtml = '';
       if (b.unlocked && badgePhoto) {
-        iconHtml = '<div class="badge-memento-icon">' +
+        iconHtml = '<div class="badge-memento-photo-area">' +
+          '<div class="badge-memento-icon">' +
           '<img src="/photos/' + badgePhoto + '" alt="' + escHtml(b.name) + '" />' +
           '</div>' +
-          '<span class="badge-memento-pin">' + b.icon + '</span>';
+          '<span class="badge-memento-pin">' + b.icon + '</span>' +
+          '</div>';
       } else if (b.unlocked) {
-        iconHtml = '<div class="badge-memento-icon">' +
+        iconHtml = '<div class="badge-memento-photo-area">' +
+          '<div class="badge-memento-icon">' +
           '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
           '</div>' +
-          '<span class="badge-memento-pin">🐾</span>';
+          '<span class="badge-memento-pin">🐾</span>' +
+          '</div>';
       } else {
-        iconHtml = '<div class="badge-memento-icon">' +
+        iconHtml = '<div class="badge-memento-photo-area">' +
+          '<div class="badge-memento-icon">' +
           '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
           '</div>' +
-          '<span class="badge-memento-pin">🔒</span>';
+          '<span class="badge-memento-pin">🔒</span>' +
+          '</div>';
       }
       html += '<div class="badge-memento ' + (b.unlocked ? 'unlocked' : 'locked') + '" ' +
         (b.unlocked ? 'data-badge-name="' + escHtml(b.name) + '" data-badge-icon="' + b.icon + '" data-badge-date="' + dateStr + '" data-badge-cat="' + b.category + '" onclick="openBadgeDetailFromEl(this)"' : '') + '>' +
