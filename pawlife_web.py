@@ -3447,21 +3447,18 @@ body {
   font-size: 0.76em; color: var(--muted); text-align: center;
 }
 
-/* ===== 快速记录区 ===== */
-.section-label {
-  font-size: 0.88em; font-weight: 700; color: var(--brown);
-  margin-bottom: 8px; margin-top: 2px;
-}
+/* ===== 首页功能入口网格 ===== */
+/* 第一行：2 列主功能卡片 */
 .quick-record-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .quick-record-card {
   background: var(--card); border-radius: var(--radius);
   padding: 14px 12px; text-align: center; cursor: pointer;
   box-shadow: var(--shadow); border: 1px solid var(--border);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-  user-select: none;
+  user-select: none; position: relative;
 }
 .quick-record-card:hover {
   transform: translateY(-2px);
@@ -3472,6 +3469,30 @@ body {
 .qr-icon { font-size: 1.6em; display: block; margin-bottom: 4px; }
 .qr-label { font-size: 0.9em; font-weight: 700; color: var(--brown); display: block; }
 .qr-hint { font-size: 0.72em; color: var(--muted); display: block; margin-top: 2px; }
+
+/* 第二行：4 列辅功能卡片（无副标题，紧凑） */
+.quick-record-grid-sm {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px;
+  margin-bottom: 16px;
+}
+.quick-record-card-sm {
+  background: var(--card); border-radius: var(--radius);
+  padding: 12px 6px; text-align: center; cursor: pointer;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  user-select: none; position: relative;
+}
+.quick-record-card-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(100,60,20,0.1);
+  border-color: var(--orange);
+}
+.quick-record-card-sm:active { transform: scale(0.97); }
+.qr-icon-sm { font-size: 1.5em; display: block; margin-bottom: 3px; }
+.qr-label-sm { font-size: 0.82em; font-weight: 700; color: var(--brown); display: block; }
+@media (max-width: 520px) {
+  .quick-record-grid-sm { grid-template-columns: 1fr 1fr; }
+}
 
 .btn-secondary {
   background: transparent;
@@ -3576,20 +3597,6 @@ body {
 .growth-more-link:hover { opacity: 0.75; }
 
 /* ===== 功能入口链接 ===== */
-.feature-links {
-  display: flex; flex-direction: column; gap: 4px;
-  margin-bottom: 14px; padding: 8px 0;
-  border-top: 1px dashed var(--border);
-  border-bottom: 1px dashed var(--border);
-}
-.feature-link-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; cursor: pointer; border-radius: 10px;
-  font-size: 0.9em; font-weight: 600; color: var(--brown);
-  transition: background 0.2s; position: relative;
-}
-.feature-link-item:hover { background: var(--orange-light); }
-.feature-link-arrow { margin-left: auto; color: var(--muted); font-size: 0.85em; }
 
 /* ===== 体重管理页 ===== */
 .weight-chart-container { margin: 8px 0; overflow-x: auto; }
@@ -5563,28 +5570,40 @@ input[type="file"]::file-selector-button:hover {
       <div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>
     </div>
 
-    <!-- ===== 快速记录区 ===== -->
+    <!-- ===== 汪汪日常 ===== -->
     <div class="section-label">🐶 汪汪日常</div>
+    <!-- 第一行：2 个主功能 -->
     <div class="quick-record-grid">
       <div class="quick-record-card" onclick="navigateTo('record')">
         <span class="qr-icon">📝</span>
         <span class="qr-label">记录健康事件</span>
         <span class="qr-hint">疫苗、驱虫、异常，事事有迹可循</span>
       </div>
-      <div class="quick-record-card" onclick="navigateTo('weight')">
-        <span class="qr-icon">⚖️</span>
-        <span class="qr-label">体重管理</span>
-        <span class="qr-hint">趋势变化一目了然，及时察觉异常</span>
-      </div>
       <div class="quick-record-card" onclick="navigateTo('diet')">
         <span class="qr-icon">🍖</span>
         <span class="qr-label">饮食指导</span>
         <span class="qr-hint">按品种、年龄和体重量身推荐</span>
       </div>
-      <div class="quick-record-card" onclick="navigateTo('reminders')">
-        <span class="qr-icon">📅</span>
-        <span class="qr-label">照护提醒</span>
-        <span class="qr-hint">不错过每一次疫苗、驱虫和检查</span>
+    </div>
+    <!-- 第二行：4 个辅功能 -->
+    <div class="quick-record-grid-sm">
+      <div class="quick-record-card-sm" onclick="navigateTo('weight')">
+        <span class="qr-icon-sm">⚖️</span>
+        <span class="qr-label-sm">体重管理</span>
+      </div>
+      <div class="quick-record-card-sm" onclick="navigateTo('reminders')">
+        <span class="qr-icon-sm">📅</span>
+        <span class="qr-label-sm">照护提醒</span>
+      </div>
+      <div class="quick-record-card-sm" onclick="navigateTo('badges')">
+        <span class="qr-icon-sm">🎖️</span>
+        <span class="qr-label-sm">健康成就</span>
+      </div>
+      <div class="quick-record-card-sm" id="cardSuppHome" onclick="navigateTo('supplement')">
+        <span class="feature-badge" id="badgeSupplement" style="display:none;"></span>
+        <span class="feature-paw-badge" id="badgePawSupplement" style="display:none;" onclick="event.stopPropagation();openEasterEgg();">🐾</span>
+        <span class="qr-icon-sm">🛡️</span>
+        <span class="qr-label-sm">营养补充</span>
       </div>
     </div>
 
@@ -5614,21 +5633,9 @@ input[type="file"]::file-selector-button:hover {
       <div class="skeleton" style="width:50%;"></div>
     </div>
 
-    <!-- 功能入口（荣誉勋章 + 保健品小队） -->
-    <div class="feature-links" id="featureLinks">
-      <div class="feature-link-item" onclick="navigateTo('badges')">
-        <span>🎖️</span><span>荣誉勋章</span><span class="feature-link-arrow">→</span>
-      </div>
-      <div class="feature-link-item" id="featSupplement" onclick="navigateTo('supplement')">
-        <span class="feature-badge" id="badgeSupplement" style="display:none;"></span>
-        <span class="feature-paw-badge" id="badgePawSupplement" style="display:none;" onclick="event.stopPropagation();openEasterEgg();">🐾</span>
-        <span>🛡️</span><span>保健品小队</span><span class="feature-link-arrow">→</span>
-      </div>
-    </div>
-
     <!-- 彩蛋提示 -->
     <div class="easter-hint" id="easterHint" style="display:none;">
-      💡 嘘…在 <b>保健品小队</b> 里藏了一个小彩蛋 🐾
+      💡 嘘…在 <b>营养补充</b> 里藏了一个小彩蛋 🐾
     </div>
 
     <!-- 备份按钮 -->
@@ -8404,12 +8411,12 @@ async function doCheckIn() {
 let _easterQuizData = null;
 
 // ---- 彩蛋入口可见性（每日随机出现在四个功能页面之一） ----
-const QUIZ_LOCATIONS = ['featSupplement'];
+const QUIZ_LOCATIONS = ['cardSuppHome'];
 const QUIZ_HOME_BADGE_IDS = {
-  featSupplement: 'badgePawSupplement',
+  cardSuppHome: 'badgePawSupplement',
 };
 const QUIZ_PAGE_ENTRY_IDS = {
-  featSupplement: 'easterEggEntry',
+  cardSuppHome: 'easterEggEntry',
 };
 
 function getDailyQuizLocation() {
