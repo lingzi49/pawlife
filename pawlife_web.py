@@ -3580,14 +3580,14 @@ body {
   font-size: 1.4em; color: var(--muted); background: #FDFBF7;
 }
 .growth-badges-row {
-  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+  display: flex; gap: 8px; flex-wrap: nowrap; margin-bottom: 8px; overflow-x: auto;
 }
 .growth-badge-mini {
   display: flex; align-items: center; gap: 4px;
   background: #FFFDF7; border: 1.5px solid #A67B5B;
   border-radius: 20px; padding: 4px 10px;
   font-size: 0.8em; font-weight: 600; color: #5D3A1A;
-  transition: transform 0.2s;
+  transition: transform 0.2s; flex-shrink: 0; white-space: nowrap;
 }
 .growth-badge-mini.locked { filter: grayscale(100%); opacity: 0.4; border-style: dashed; border-color: #CCC; }
 .growth-more-link {
