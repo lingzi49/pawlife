@@ -1445,6 +1445,15 @@ def api_delete_health_photo(pet_id: int = 1, index: int = 0):
     return {"message": "纪念照已删除", "health_photo_count": len(hp)}
 
 
+# 勋章→事件照片映射：(事件类型, 第N次)
+_BADGE_EVENT_PHOTO_MAP = {
+    "第一针疫苗": ("疫苗", 1),
+    "第一次驱虫": ("驱虫", 1),
+    "第一次洗澡": ("洗澡澡", 1),
+    "免疫完成": ("疫苗", 3),
+    "驱虫达标": ("驱虫", 6),
+}
+
 @app.get("/api/badges")
 def api_get_badges(pet_id: int = 1):
     """返回所有勋章及解锁状态，按故事线分类"""
@@ -1463,10 +1472,28 @@ def api_get_badges(pet_id: int = 1):
         if unlocked_badges and isinstance(unlocked_badges[0], str):
             unlocked_badges = [{"name": b, "icon": "🐾", "date": "", "category": "健康里程碑"} for b in unlocked_badges]
         unlocked_names = {b["name"] for b in unlocked_badges}
+
+        # 预查询所有事件（按日期排序），用于勋章照片匹配
+        from sqlalchemy import asc as sa_asc
+        all_events = db.query(Event).filter(
+            Event.dog_id == pet_id, Event.photo.isnot(None), Event.photo != ""
+        ).order_by(sa_asc(Event.date)).all()
+        # 按类型分组：{类型: [event, ...]}
+        events_by_type = {}
+        for ev in all_events:
+            events_by_type.setdefault(ev.type, []).append(ev)
+
         result = []
         for bdef in BADGE_DEFINITIONS:
             is_unlocked = bdef["name"] in unlocked_names
             unlock_info = next((u for u in unlocked_badges if u["name"] == bdef["name"]), None)
+            # 查找对应事件照片
+            photo = None
+            if is_unlocked and bdef["name"] in _BADGE_EVENT_PHOTO_MAP:
+                ev_type, ev_n = _BADGE_EVENT_PHOTO_MAP[bdef["name"]]
+                ev_list = events_by_type.get(ev_type, [])
+                if len(ev_list) >= ev_n:
+                    photo = ev_list[ev_n - 1].photo
             result.append({
                 "name": bdef["name"],
                 "icon": bdef["icon"],
@@ -1474,6 +1501,7 @@ def api_get_badges(pet_id: int = 1):
                 "condition": bdef.get("condition", ""),
                 "unlocked": is_unlocked,
                 "date": unlock_info["date"] if unlock_info and unlock_info.get("date") else None,
+                "photo": photo,
             })
         categories = sorted(set(b["category"] for b in result))
         return {"badges": result, "total_unlocked": len(unlocked_badges), "categories": categories}
@@ -3847,6 +3875,7 @@ body {
   text-align: center; cursor: pointer; user-select: none;
   border: 1.5px solid #EDE0CC; transition: all 0.25s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  position: relative;
 }
 .badge-memento:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
 .badge-memento.unlocked { }
@@ -3856,7 +3885,7 @@ body {
 }
 .badge-memento.locked:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
 .badge-memento-icon {
-  width: 72px; height: 72px; margin: 0 auto 8px; position: relative;
+  width: 72px; height: 72px; margin: 0 auto 6px; position: relative;
   border-radius: 50%; overflow: hidden;
   border: 3px solid #D4A853;
   box-shadow: 0 0 0 3px #F5E6C8, 0 0 0 5px #D4A853, 0 2px 10px rgba(180,130,50,0.25);
@@ -3868,13 +3897,14 @@ body {
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
   font-size: 2em; background: linear-gradient(135deg, #F5F0EB, #EDE5DA);
 }
-.badge-memento-icon-badge {
-  position: absolute; bottom: -3px; right: -3px;
-  width: 26px; height: 26px; border-radius: 50%;
+.badge-memento-pin {
+  position: absolute; top: 12px; right: 12px;
+  width: 24px; height: 24px; border-radius: 50%;
   background: linear-gradient(135deg, #FFD54F, #FFA000);
   border: 2px solid #FFF; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75em; line-height: 1;
+  font-size: 0.7em; line-height: 1; z-index: 2;
+  pointer-events: none;
 }
 .badge-memento.locked .badge-memento-icon {
   border-color: #D8CFC0;
@@ -3884,7 +3914,7 @@ body {
   background: linear-gradient(135deg, #F8F6F3, #EEEAE4);
   font-size: 2em; opacity: 0.5;
 }
-.badge-memento.locked .badge-memento-icon-badge {
+.badge-memento.locked .badge-memento-pin {
   background: linear-gradient(135deg, #E8E4DE, #D0C8BC);
   border-color: #F0EDE8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
@@ -5683,7 +5713,7 @@ input[type="file"]::file-selector-button:hover {
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">🏵️ 我们的荣誉小墙</span>
+        <span class="sub-page-title">🏵️ 我们的荣誉墙</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -8077,24 +8107,24 @@ function renderBadgeWall(category) {
     }
     catBadges.forEach(b => {
       const dateStr = b.date || '';
-      // 已解锁勋章用照片 + 勋章框，未解锁用灰色占位符
+      // 照片优先级：勋章对应事件照片 > 狗狗头像 > 占位符
+      const badgePhoto = b.photo || (_cachedDog && _cachedDog.photo) || null;
       let iconHtml = '';
-      if (b.unlocked && _cachedDog && _cachedDog.photo) {
+      if (b.unlocked && badgePhoto) {
         iconHtml = '<div class="badge-memento-icon">' +
-          '<img src="/photos/' + _cachedDog.photo + '" alt="' + escHtml(b.name) + '" />' +
-          '<span class="badge-memento-icon-badge">' + b.icon + '</span>' +
-          '</div>';
+          '<img src="/photos/' + badgePhoto + '" alt="' + escHtml(b.name) + '" />' +
+          '</div>' +
+          '<span class="badge-memento-pin">' + b.icon + '</span>';
       } else if (b.unlocked) {
-        // 有头像但还没上传照片
         iconHtml = '<div class="badge-memento-icon">' +
           '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
-          '<span class="badge-memento-icon-badge">🐾</span>' +
-          '</div>';
+          '</div>' +
+          '<span class="badge-memento-pin">🐾</span>';
       } else {
         iconHtml = '<div class="badge-memento-icon">' +
           '<div class="badge-memento-icon-placeholder">' + b.icon + '</div>' +
-          '<span class="badge-memento-icon-badge">🔒</span>' +
-          '</div>';
+          '</div>' +
+          '<span class="badge-memento-pin">🔒</span>';
       }
       html += '<div class="badge-memento ' + (b.unlocked ? 'unlocked' : 'locked') + '" ' +
         (b.unlocked ? 'data-badge-name="' + escHtml(b.name) + '" data-badge-icon="' + b.icon + '" data-badge-date="' + dateStr + '" data-badge-cat="' + b.category + '" onclick="openBadgeDetailFromEl(this)"' : '') + '>' +
