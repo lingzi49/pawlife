@@ -3356,7 +3356,7 @@ body {
 /* ===== 今日状态卡 ===== */
 .today-dashboard {
   background: var(--card); border-radius: var(--radius);
-  padding: 14px 16px; margin-bottom: 12px;
+  padding: 12px 16px 8px; margin-bottom: 10px;
   box-shadow: var(--shadow); border: 1px solid var(--border);
 }
 .today-dashboard-main {
@@ -3384,10 +3384,19 @@ body {
 }
 .td-paw:hover { transform: scale(1.05); }
 .td-streak { font-size: 0.82em; color: var(--brown-light); white-space: nowrap; }
+.td-checkin-btn {
+  font-size: 0.82em; font-weight: 700; color: #fff; white-space: nowrap;
+  padding: 5px 12px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--orange), #FFB74D);
+  cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(255,138,0,0.18); border: none;
+  font-family: inherit;
+}
+.td-checkin-btn:hover { transform: scale(1.05); box-shadow: 0 3px 12px rgba(255,138,0,0.3); }
+.td-checkin-btn:active { transform: scale(0.97); }
 
 .today-pending {
   margin-top: 10px; padding-top: 10px;
-  border-top: 1px dashed var(--border);
   font-size: 0.92em; font-weight: 600; color: var(--orange);
   line-height: 1.5;
 }
@@ -3507,9 +3516,6 @@ body {
 .quick-record-card-sm:active { transform: scale(0.97); }
 .qr-icon-sm { font-size: 1.5em; display: block; margin-bottom: 3px; }
 .qr-label-sm { font-size: 0.82em; font-weight: 700; color: var(--brown); display: block; }
-@media (max-width: 520px) {
-  .quick-record-grid { grid-template-columns: 1fr 1fr; }
-}
 
 .btn-secondary {
   background: transparent;
@@ -5320,7 +5326,7 @@ input[type="file"]::file-selector-button:hover {
   .today-avatar-sm { width: 46px; height: 46px; font-size: 1.5em; }
 
   /* 容器 */
-  .container { padding: 0 8px 40px; }
+  .container { padding: 0 12px 40px; }
 
   /* 今日状态卡 */
   .today-dashboard { padding: 12px 12px; }
@@ -5561,7 +5567,7 @@ input[type="file"]::file-selector-button:hover {
         </div>
         <div class="today-dashboard-meta">
           <span class="td-paw" id="statusPawPoints" style="display:none;" onclick="openPawHistory()">🐾 <b id="statusPawCount">0</b></span>
-          <span class="td-streak" id="statusStreak" style="display:none;">🔥 <b id="statusStreakCount">0</b>天</span>
+          <span class="td-streak" id="statusStreak" style="display:none;"></span>
         </div>
       </div>
       <div class="today-pending" id="todayPending">
@@ -6533,9 +6539,7 @@ let _cachedHealthData = null;  // 缓存健康检查数据
 function updateTodayDashboard(dog, age) {
   const info = $('todayDashboardInfo');
   const pawEl = $('statusPawPoints');
-  const streakEl = $('statusStreak');
   const pawCount = $('statusPawCount');
-  const streakCount = $('statusStreakCount');
   if (info && dog) {
     info.innerHTML = '<b>' + escHtml(dog.name) + '</b> · ' + escHtml(dog.breed) + ' · ' + escHtml(age) +
       (dog.weight ? ' · ' + escHtml(dog.weight) : '') +
@@ -6571,11 +6575,19 @@ async function loadStatusBarRecent() {
 async function loadStatusBarStreak() {
   try {
     const status = await api('/api/checkin/status?pet_id=' + (_cachedDog?.id || 1));
-    const streakEl = $('statusStreak');
-    const streakCount = $('statusStreakCount');
-    if (streakEl && status) {
-      streakEl.style.display = '';
-      if (streakCount) streakCount.textContent = status.streak || 0;
+    const el = $('statusStreak');
+    if (!el || !status) return;
+    el.style.display = '';
+    if (status.checked_today && status.streak >= 1) {
+      el.className = 'td-streak';
+      el.innerHTML = '🔥 <b>' + status.streak + '</b>天';
+      el.onclick = null;
+      el.title = '已连续签到 ' + status.streak + ' 天';
+    } else {
+      el.className = 'td-checkin-btn';
+      el.innerHTML = '📅 签到';
+      el.onclick = doCheckIn;
+      el.title = '点击签到，累积连续天数解锁勋章';
     }
   } catch (e) {}
 }
@@ -6676,8 +6688,8 @@ async function loadPendingCount() {
     }
     const name = _cachedDog?.name || '狗狗';
     if (count > 0) {
+      pendingEl.style.display = '';
       pendingEl.innerHTML = '<span class="pending-count">' + count + '</span>' + escHtml(name) + '今天有 <b>' + count + '</b> 项健康任务待完成';
-      // 显示最新提醒
       if (data.reminders && data.reminders.length > 0) {
         const reminderEl = $('tdReminder');
         if (reminderEl) {
@@ -6685,15 +6697,17 @@ async function loadPendingCount() {
         }
       }
     } else {
-      pendingEl.innerHTML = '';
+      pendingEl.style.display = 'none';
       const reminderEl = $('tdReminder');
       if (reminderEl) reminderEl.textContent = '';
     }
   } catch (e) {
     const pendingEl = $('todayPending');
-    if (pendingEl) pendingEl.innerHTML = '';
+    if (pendingEl) pendingEl.style.display = 'none';
   }
 }
+
+
 
 async function recordDailyCheck(result) {
   try {
@@ -8472,10 +8486,15 @@ async function doCheckIn() {
       msg = `🎉 太厉害了！你解锁了 ${data.milestone}！连续签到 ${data.streak} 天！`;
     }
     showToast(msg);
-    // 处理新勋章
     if (data.new_badges && data.new_badges.length > 0) {
       handleNewBadges(data.new_badges);
     }
+    if (_cachedDog) _cachedDog.paw_points = data.paw_points;
+    loadStatusBarStreak();
+    const pawEl = $('statusPawPoints');
+    const pawCount = $('statusPawCount');
+    if (pawEl) pawEl.style.display = '';
+    if (pawCount) pawCount.textContent = data.paw_points || 0;
     loadCheckinStatus();
   } catch (e) {
     showToast(e.message || '签到失败，等会再试试吧～', true);
