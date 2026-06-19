@@ -4261,6 +4261,11 @@ body {
 .reminder-body { flex: 1; }
 .reminder-title { font-weight: 700; color: var(--brown); margin-bottom: 2px; font-size: 0.95em; }
 .reminder-desc { font-size: 0.85em; color: var(--brown-light); line-height: 1.5; }
+.reminder-days {
+  font-size: 1em; font-weight: 800; color: var(--orange);
+  margin-top: 4px; letter-spacing: 0.02em;
+}
+.reminder-days b { font-size: 1.15em; }
 .reminder-action {
   display: inline-block; margin-top: 6px; font-size: 0.85em;
   color: var(--orange); font-weight: 600; cursor: pointer;
@@ -4589,7 +4594,8 @@ body {
   z-index: 9999; background: #FFFBF5; border: 1.5px solid #F0D0A0;
   border-radius: 14px; padding: 10px 22px; font-size: 0.88em; font-weight: 600;
   color: var(--brown); box-shadow: 0 4px 20px rgba(180,140,100,0.12);
-  animation: fadeIn 0.5s ease; white-space: nowrap;
+  animation: fadeIn 0.5s ease;
+  max-width: calc(100vw - 32px); word-break: break-word; text-align: center;
 }
 
 /* ===== 功能入口标记（保健品角标等）===== */
@@ -4897,8 +4903,8 @@ body {
   border-radius: 30px; font-weight: 600; font-size: 0.92em;
   box-shadow: 0 6px 20px rgba(0,0,0,0.18);
   animation: toastSlideIn 0.35s ease, toastSlideOut 0.35s ease 2.5s forwards;
-  pointer-events: auto; white-space: nowrap; text-align: center;
-  max-width: 90vw;
+  pointer-events: auto; text-align: center;
+  max-width: calc(100vw - 32px); word-break: break-word;
 }
 @keyframes toastSlideIn {
   from { opacity: 0; transform: translateY(-30px); }
@@ -6123,6 +6129,8 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   .toast { font-size: 0.85em; padding: 10px 18px; left: 12px; right: 12px; transform: none; max-width: none; border-radius: 14px; text-align: center; }
   @keyframes toastIn { from { opacity: 0; transform: translateY(-12px); } }
   @keyframes toastOut { to { opacity: 0; transform: translateY(-8px); } }
+  .toast-msg { font-size: 0.82em; padding: 10px 16px; border-radius: 20px; }
+  .badge-unlock-toast { font-size: 0.8em; padding: 8px 14px; top: 10px; }
 
   /* 页脚 */
   .app-footer { padding: 14px 8px; font-size: 0.74em; }
@@ -6439,7 +6447,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">📝 记录事件</span>
+        <span class="sub-page-title" id="titleRecord">📝 成长日记</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -6494,7 +6502,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">🍖 饮食宝典</span>
+        <span class="sub-page-title" id="titleDiet">🍖 伙食搭配</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -6515,7 +6523,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">🏵️ 我们的荣誉墙</span>
+        <span class="sub-page-title" id="titleBadges">🏵️ 高光时刻</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -6581,7 +6589,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">🛡️ 保健品小队</span>
+        <span class="sub-page-title" id="titleSupplement">🛡️ 元气补给</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -6603,7 +6611,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">⚖️ 体重管理</span>
+        <span class="sub-page-title" id="titleWeight">⚖️ 身材管理</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -6669,11 +6677,11 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
-        <span class="sub-page-title">📅 健康提醒</span>
+        <span class="sub-page-title" id="titleReminders">📅 贴心闹钟</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
-    <div class="reminders-intro">📋 根据健康记录自动整理的照护提醒，关键节点不错过</div>
+    <div class="reminders-intro">📋 根据健康记录自动生成提醒，疫苗、驱虫、体检都不遗漏</div>
     <div id="remindersArea">
       <div class="skeleton" style="width:60%;"></div>
       <div class="skeleton" style="width:40%;"></div>
@@ -7548,12 +7556,12 @@ async function loadDailyCheckStatus() {
       if (toggle) toggle.style.display = '';
       if (completed) {
         completed.style.display = '';
-        completed.innerHTML = '✅ 今日健康检查已完成！' + (data.result === 'normal' ? '一切正常，' + (_cachedDog?.name || '狗狗') + '今天也很健康～' : '已记录异常，请注意观察。');
+        completed.innerHTML = '✅ 今日健康检查已完成！' + (data.result === 'normal' ? '今日健康检查已完成，' + (_cachedDog?.name || '狗狗') + '状态很好～' : '已记录异常，请注意观察。');
       }
       if (desc) desc.style.opacity = '0.6';
       if (collapsedEl) {
         collapsedEl.style.display = '';
-        collapsedEl.innerHTML = data.result === 'normal' ? '✅ 今日检查已完成 · 一切正常' : '⚠️ 今日检查已完成 · 已记录异常';
+        collapsedEl.innerHTML = data.result === 'normal' ? '✅ 今日检查已完成 · 状态很好' : '⚠️ 今日检查已完成 · 已记录异常';
       }
       const today = new Date().toDateString();
       const storedDate = sessionStorage.getItem('dailyCheckDoneDate');
@@ -7650,12 +7658,12 @@ async function recordDailyCheck(result) {
     if (toggle) toggle.style.display = '';
     if (completed) {
       completed.style.display = '';
-      completed.innerHTML = '✅ 今日健康检查已完成！' + (result === 'normal' ? '一切正常，' + (_cachedDog?.name || '狗狗') + '今天也很健康～' : '已记录异常，建议前往“添加健康记录”补充详细信息。');
+      completed.innerHTML = '✅ 今日健康检查已完成！' + (result === 'normal' ? '今日健康检查已完成，' + (_cachedDog?.name || '狗狗') + '状态很好～' : '已记录异常，建议前往“添加健康记录”补充详细信息。');
     }
     if (desc) desc.style.opacity = '0.6';
     if (collapsedEl) {
       collapsedEl.style.display = '';
-      collapsedEl.innerHTML = result === 'normal' ? '✅ 今日检查已完成 · 一切正常' : '⚠️ 今日检查已完成 · 已记录异常';
+      collapsedEl.innerHTML = result === 'normal' ? '✅ 今日检查已完成 · 状态很好' : '⚠️ 今日检查已完成 · 已记录异常';
     }
     if (body) body.classList.add('hidden');
     if (card) card.classList.add('collapsed');
@@ -9049,9 +9057,9 @@ async function loadRemindersPage() {
       if (daysLeft <= 0) {
         reminders.push({ icon: '🔴', title: '疫苗已过期', desc: '距上次疫苗已超过 1 年（' + lastVax.date + '），请尽快联系兽医安排接种。', urgent: true });
       } else if (daysLeft <= 30) {
-        reminders.push({ icon: '🟡', title: '疫苗即将到期', desc: '下次疫苗建议在 ' + nextVax.toISOString().slice(0, 10) + '（还有 ' + daysLeft + ' 天），可以提前预约了。', urgent: false });
+        reminders.push({ icon: '🟡', title: '疫苗即将到期', desc: '下次疫苗建议在 ' + nextVax.toISOString().slice(0, 10) + '，可以提前预约了。', daysLeft: daysLeft, urgent: false });
       } else {
-        reminders.push({ icon: '🟢', title: '疫苗状态正常', desc: '上次接种：' + lastVax.date + '，下次建议：' + nextVax.toISOString().slice(0, 10) + '（还有 ' + daysLeft + ' 天）。', urgent: false });
+        reminders.push({ icon: '🟢', title: '疫苗状态正常', desc: '上次接种：' + lastVax.date + '，下次建议：' + nextVax.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
       }
     } else {
       reminders.push({ icon: '📋', title: '暂无疫苗记录', desc: '还没有记录过疫苗接种，建议首次接种后在此查看提醒。', action: '去记录', target: 'record' });
@@ -9069,9 +9077,9 @@ async function loadRemindersPage() {
       if (daysLeft <= 0) {
         reminders.push({ icon: '🔴', title: '驱虫已过期', desc: '距上次驱虫已超过 ' + dewormInterval + ' 天（' + lastDeworm.date + '），请尽快安排驱虫。', urgent: true });
       } else if (daysLeft <= 14) {
-        reminders.push({ icon: '🟡', title: '驱虫即将到期', desc: '下次驱虫建议在 ' + nextDeworm.toISOString().slice(0, 10) + '（还有 ' + daysLeft + ' 天）。', urgent: false });
+        reminders.push({ icon: '🟡', title: '驱虫即将到期', desc: '下次驱虫建议在 ' + nextDeworm.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
       } else {
-        reminders.push({ icon: '🟢', title: '驱虫状态正常', desc: '上次驱虫：' + lastDeworm.date + '，下次建议：' + nextDeworm.toISOString().slice(0, 10) + '（还有 ' + daysLeft + ' 天）。', urgent: false });
+        reminders.push({ icon: '🟢', title: '驱虫状态正常', desc: '上次驱虫：' + lastDeworm.date + '，下次建议：' + nextDeworm.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
       }
     } else {
       reminders.push({ icon: '📋', title: '暂无驱虫记录', desc: '还没有记录过驱虫，建议首次驱虫后在此查看提醒。', action: '去记录', target: 'record' });
@@ -9106,7 +9114,7 @@ async function loadRemindersPage() {
       if (!checkData.done) {
         reminders.push({ icon: '🩺', title: '今日健康检查未完成', desc: '花 1 分钟摸摸狗狗，确认没有异常。', action: '去做检查', target: 'home' });
       } else {
-        reminders.push({ icon: '✅', title: '今日健康检查已完成', desc: '一切正常，' + _cachedDog.name + '今天也很健康～', urgent: false });
+        reminders.push({ icon: '✅', title: '今日健康检查已完成', desc: '今日健康检查已完成，' + _cachedDog.name + '状态很好～', urgent: false });
       }
     } catch (e) {}
 
@@ -9119,6 +9127,7 @@ async function loadRemindersPage() {
         '<div class="reminder-body">' +
         '<div class="reminder-title">' + escHtml(r.title) + '</div>' +
         '<div class="reminder-desc">' + escHtml(r.desc) + '</div>' +
+        (r.daysLeft ? '<div class="reminder-days">还剩 <b>' + r.daysLeft + '</b> 天</div>' : '') +
         (r.action ? '<a class="reminder-action" onclick="navigateTo(\'' + r.target + '\')">' + r.action + ' →</a>' : '') +
         '</div></div>';
     });
@@ -9518,6 +9527,22 @@ function navigateTo(page) {
   if (targetPage) {
     targetPage.style.display = '';
     targetPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 动态更新子页面标题：加上狗狗名字
+  const dogName = (_cachedDog && _cachedDog.name) ? _cachedDog.name : null;
+  const titleMap = {
+    'record':    { el: 'titleRecord',    icon: '📝', text: dogName ? dogName + '的成长日记' : '成长日记' },
+    'diet':      { el: 'titleDiet',      icon: '🍖', text: dogName ? dogName + '的伙食搭配' : '伙食搭配' },
+    'badges':    { el: 'titleBadges',    icon: '🏵️', text: dogName ? dogName + '的高光时刻' : '高光时刻' },
+    'supplement':{ el: 'titleSupplement',icon: '🛡️', text: dogName ? dogName + '的元气补给' : '元气补给' },
+    'weight':    { el: 'titleWeight',    icon: '⚖️', text: dogName ? dogName + '的身材管理' : '身材管理' },
+    'reminders': { el: 'titleReminders', icon: '📅', text: dogName ? dogName + '的贴心闹钟' : '贴心闹钟' }
+  };
+  var t = titleMap[page];
+  if (t) {
+    var titleEl = $(t.el);
+    if (titleEl) titleEl.textContent = t.icon + ' ' + t.text;
   }
 
   // 按需加载子页面数据
