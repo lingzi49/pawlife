@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 PawLife — 狗狗健康管理网页应用（单文件版）
@@ -140,6 +140,17 @@ class WeightLog(Base):
     dog_id = Column(Integer, nullable=False, comment="关联狗狗ID")
     weight = Column(String(16), nullable=False, comment="体重值")
     date = Column(Date, nullable=False, comment="记录日期")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BcsLog(Base):
+    """体况评分记录表"""
+    __tablename__ = "bcs_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dog_id = Column(Integer, nullable=False, comment="关联狗狗ID")
+    bcs_state = Column(String(16), nullable=False, comment="体况: thin/ideal/heavy")
+    date = Column(Date, nullable=False, comment="评估日期")
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -296,7 +307,42 @@ fake_redis = FakeRedis()
 # ============================================================
 # Pydantic 校验模型
 # ============================================================
-BREED_OPTIONS = ["金毛", "拉布拉多", "柯基", "贵宾", "豆柴", "混血", "其他"]
+BREED_OPTIONS = [
+    "泰迪",
+    "比熊",
+    "博美",
+    "吉娃娃",
+    "约克夏",
+    "迷你雪纳瑞",
+    "巴哥",
+    "京巴",
+    "西施",
+    "马尔济斯",
+    "迷你杜宾",
+    "柴犬",
+    "豆柴",
+    "柯基",
+    "法斗",
+    "英斗",
+    "贵宾",
+    "中华田园犬",
+    "银狐",
+    "比格",
+    "金毛",
+    "拉布拉多",
+    "德牧",
+    "萨摩耶",
+    "边牧",
+    "哈士奇",
+    "阿拉斯加",
+    "秋田",
+    "松狮",
+    "罗威纳",
+    "杜宾",
+    "大白熊",
+    "混血",
+    "其他"
+]
 EVENT_TYPES = ["疫苗", "驱虫", "发情", "异常行为", "洗澡澡", "每日检查"]
 ABNORMAL_SYMPTOMS = ["跛行", "呕吐", "拉稀", "抓痒", "猛喝水", "不吃东西"]
 
@@ -311,13 +357,40 @@ HIGH_RISK_SYMPTOMS = [
 
 # 品种理想体重范围 (kg)，用于 黄金体重 勋章判定
 BREED_IDEAL_WEIGHT = {
+    "泰迪": (2.0, 5.0),
+    "比熊": (5.0, 8.5),
+    "博美": (1.5, 3.5),
+    "吉娃娃": (1.0, 3.0),
+    "约克夏": (1.5, 3.0),
+    "迷你雪纳瑞": (5.0, 9.0),
+    "巴哥": (6.0, 9.0),
+    "京巴": (3.0, 6.0),
+    "西施": (4.0, 8.0),
+    "马尔济斯": (2.0, 3.5),
+    "迷你杜宾": (4.0, 6.0),
+    "柴犬": (8.0, 12.0),
+    "豆柴": (6.0, 10.0),
+    "柯基": (10.0, 14.0),
+    "法斗": (8.0, 13.0),
+    "英斗": (18.0, 25.0),
+    "贵宾": (2.0, 32.0),
+    "中华田园犬": (12.0, 25.0),
+    "银狐": (5.0, 10.0),
+    "比格": (9.0, 16.0),
     "金毛": (25.0, 34.0),
     "拉布拉多": (25.0, 36.0),
-    "柯基": (10.0, 14.0),
-    "贵宾": (3.0, 8.0),
-    "豆柴": (7.0, 10.0),
+    "德牧": (22.0, 40.0),
+    "萨摩耶": (16.0, 30.0),
+    "边牧": (14.0, 22.0),
+    "哈士奇": (16.0, 27.0),
+    "阿拉斯加": (34.0, 45.0),
+    "秋田": (32.0, 55.0),
+    "松狮": (20.0, 32.0),
+    "罗威纳": (35.0, 60.0),
+    "杜宾": (27.0, 45.0),
+    "大白熊": (36.0, 54.0),
     "混血": None,
-    "其他": None,
+    "其他": None
 }
 
 # 勋章定义列表
@@ -334,6 +407,7 @@ BADGE_DEFINITIONS = [
     {"name": "洁齿坚持", "icon": "🦷", "category": "守护者", "condition": "我们30天内坚持了15天洁齿好习惯"},
     {"name": "肠胃稳定", "icon": "🍽️", "category": "守护者", "condition": "我们度过了连续60天肠胃无恙的安稳日子"},
     {"name": "体重管理", "icon": "⚖️", "category": "守护者", "condition": "我们3个月保持理想体重，身材管理大师"},
+    {"name": "体态管理", "icon": "🤚", "category": "守护者", "condition": "我们连续3次评估保持理想体态，科学养宠达人"},
     # ===== 健康里程碑系列 =====
     {"name": "生日快乐", "icon": "🎂", "category": "健康里程碑", "condition": "我们一起吹了生日蜡烛"},
     {"name": "绝育勇敢", "icon": "🌟", "category": "健康里程碑", "condition": "我们一起经历了成长的重要一步"},
@@ -590,6 +664,104 @@ DECISION_TREE: Dict[str, Dict[str, Dict[str, str]]] = {
         },
         "呕吐": {
             "advice": "我可能是吃太快了或者毛球堵住了。主人试试用慢食碗，定期帮我梳毛。如果呕吐物带黄绿色（胆汁），且一天多次，就去看医生。",
+            "level": "中",
+        },
+    },
+    "法斗": {
+        "抓痒": {
+            "advice": "我们法斗脸上和身上的小皱褶容易积攒污垢、引发皮肤炎。主人每天帮我用湿软布轻轻擦拭皱褶，再擦干保持清爽～如果已经有红肿或异味，要用宠物专用抗菌湿巾。",
+            "level": "中低",
+        },
+        "猛喝水": {
+            "advice": "法斗是短鼻犬，散热效率差，猛喝水可能是体温过高的信号！主人检查一下室温是否太热、我是否刚剧烈运动过。短鼻犬中暑风险极高，夏天一定要待在凉爽的地方。",
+            "level": "中高",
+        },
+        "呕吐": {
+            "advice": "我们短鼻犬吃东西急、食道结构特殊，容易反流或呕吐。主人试试把饭盆垫高一点、分多次喂，如果呕吐频繁或带血丝立刻去医院。",
+            "level": "中",
+        },
+    },
+    "英斗": {
+        "抓痒": {
+            "advice": "英斗的皮肤皱褶比法斗还多，特别容易在脸部、尾巴根部藏细菌。主人每天帮我检查和清洁所有皱褶缝隙，洗澡后一定要彻底吹干！",
+            "level": "中",
+        },
+        "猛喝水": {
+            "advice": "我们英斗也是短鼻犬，散热差、怕热！突然猛喝水可能是热应激的信号。请让我待在阴凉通风处，夏天中午绝对不要带我出门。",
+            "level": "中高",
+        },
+        "呕吐": {
+            "advice": "英斗肠胃比较脆弱，吃太快或食物不合适就容易吐。主人给我用慢食碗、避免喂人食，如果一天内吐超过两次要去看医生。",
+            "level": "中",
+        },
+    },
+    "巴哥": {
+        "猛喝水": {
+            "advice": "我们巴哥也是短鼻犬，夏天特别容易中暑！突然猛喝水可能是身体在降温求救。帮我找个凉快的地方，用湿毛巾擦擦肚子和脚垫帮散热。",
+            "level": "中高",
+        },
+        "抓痒": {
+            "advice": "巴哥脸上的小皱褶容易藏细菌导致发痒，主人用宠物专用湿巾轻轻帮我清理皱褶，再涂一点护臀膏保护。眼睛周围的分泌物也要每天擦哦。",
+            "level": "中低",
+        },
+        "不吃东西": {
+            "advice": "我们巴哥有时候会因为呼吸困难或眼睛疼痛而不想吃饭。主人检查一下我呼吸时有杂音吗？眼睛有没有发红或眯着？任何异常都建议看兽医。",
+            "level": "中",
+        },
+    },
+    "德牧": {
+        "跛行": {
+            "advice": "德牧家族髋关节发育不良发病率较高，跛行可能是髋关节在求救！主人暂时限制我的活动，不要让我上下楼梯，尽快带去医院拍X光检查。",
+            "level": "高",
+        },
+        "呕吐": {
+            "advice": "大型犬尤其德牧容易发生胃扭转（GDV），这是致命的急症！如果我呕吐却没有东西出来、腹部胀大、焦躁不安，请立刻立刻冲向最近的医院，一秒都不要等！",
+            "level": "极高",
+        },
+        "拉稀": {
+            "advice": "德牧肠胃比较敏感，部分还有胰腺外分泌不足（EPI）的遗传倾向。如果长期软便拉稀、体重下降，主人可以问兽医是否需要检测EPI。先给我喂点益生菌调理。",
+            "level": "中",
+        },
+    },
+    "杜宾": {
+        "猛喝水": {
+            "advice": "我们杜宾是扩张型心肌病（DCM）高发品种，突然大量喝水加上容易疲劳、咳嗽、腹部变大可能是心脏在求救。主人请尽快带我去做心脏超声筛查！",
+            "level": "中高",
+        },
+        "呕吐": {
+            "advice": "杜宾也是深胸大型犬，胃扭转风险高！如果我干呕却吐不出、肚子胀、走来走去不安，这是胃扭转的紧急信号，立刻去医院，黄金抢救时间只有30分钟！",
+            "level": "极高",
+        },
+        "跛行": {
+            "advice": "杜宾跑跳能力强，跛行可能是运动扭伤，但也可能是心脏问题导致血液循环不良引起无力。主人留意我是否同时有疲劳、咳嗽等症状，综合判断。",
+            "level": "中",
+        },
+    },
+    "柴犬": {
+        "抓痒": {
+            "advice": "我们柴犬是过敏体质大户！花粉、尘螨、某些食物都可能让我痒得发疯。主人帮我排查最近有没有换狗粮、环境有没有变化，必要时可以做过敏原测试。",
+            "level": "中",
+        },
+        "跛行": {
+            "advice": "柴犬容易有髌骨脱位（膝盖骨滑出），小型犬中非常常见。如果我的后腿偶尔一瘸一拐、跳几步又恢复正常，很可能是髌骨问题，去拍个片子确认等级。",
+            "level": "中",
+        },
+        "不吃东西": {
+            "advice": "我们柴犬天生有点傲娇，有时纯属情绪不好不想吃。但如果超过一天不吃、且精神不佳或呕吐，主人就要重视了。牙齿问题也会导致拒食，帮我看看牙龈有没有红肿。",
+            "level": "中低",
+        },
+    },
+    "比熊": {
+        "抓痒": {
+            "advice": "我们比熊皮肤超级敏感，过敏导致的瘙痒很常见。主人想想是不是换了沐浴露、狗粮，或者春天花粉季来了。给我用低敏配方洗护、定期驱虫，Omega-3也对皮肤好哦～",
+            "level": "中低",
+        },
+        "不吃东西": {
+            "advice": "比熊容易有牙结石和牙龈炎，不吃饭可能是牙齿在疼！主人翻开我的嘴唇看看后槽牙有没有黄褐色结石、牙龈有没有红肿。从小养成刷牙习惯是最重要的预防。",
+            "level": "中",
+        },
+        "跛行": {
+            "advice": "小型犬常见髌骨脱位，我们比熊也不例外。如果偶尔看到我后腿一跳一跳的、过一会又好了，可能就是髌骨滑出来了。控制体重、避免在光滑地板上跑跳能减轻症状。",
             "level": "中",
         },
     },
@@ -927,8 +1099,14 @@ def check_badges(db, pet_id: int) -> list:
             except Exception:
                 pass
 
+    # 11. 体态管理：连续3次 BCS 评估为 ideal
+    bcs_logs = db.query(BcsLog).filter(BcsLog.dog_id == pet_id).order_by(BcsLog.date.desc()).all()
+    if len(bcs_logs) >= 3:
+        if all(l.bcs_state == "ideal" for l in bcs_logs[:3]):
+            _unlock("体态管理")
+
     # ===== 健康里程碑系列 =====
-    # 11. 生日快乐：生日当天签到
+    # 12. 生日快乐：生日当天签到
     if dog.birthday:
         bday = db.query(CheckIn).filter(
             CheckIn.pet_id == pet_id,
@@ -1021,11 +1199,15 @@ def api_create_dog(payload: DogCreate):
             gender=payload.gender,
             diseases=payload.diseases,
             home_date=payload.home_date,
-            bath_interval_days=_calc_bath_interval(payload.weight),
+            bath_interval_days=_calc_bath_interval(payload.weight, payload.breed),
             last_bath_date=date.today(),
         )
         db.add(dog)
         db.flush()
+        # 如果填写了体重，同步创建一条体重记录
+        if payload.weight and payload.weight.strip():
+            db.add(WeightLog(dog_id=dog.id, weight=payload.weight, date=date.today()))
+            db.flush()
         _refresh_supplement_alerts(db, dog)
         # 检查勋章（初来乍到会在创建档案后立即解锁）
         new_badges = check_badges(db, dog.id)
@@ -1043,6 +1225,7 @@ def api_update_dog(payload: DogCreate):
         dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
         if not dog:
             raise HTTPException(status_code=404, detail="还没有狗狗档案，主人快去建档吧～")
+        old_weight = dog.weight
         dog.name = payload.name
         dog.breed = payload.breed
         dog.birthday = payload.birthday
@@ -1052,8 +1235,13 @@ def api_update_dog(payload: DogCreate):
         dog.gender = payload.gender
         dog.diseases = payload.diseases
         dog.home_date = payload.home_date
-        dog.bath_interval_days = _calc_bath_interval(payload.weight)
+        dog.bath_interval_days = _calc_bath_interval(payload.weight, payload.breed)
         db.flush()
+        # 如果体重有变化，同步创建一条体重记录
+        new_weight = (payload.weight or "").strip()
+        if new_weight and new_weight != (old_weight or "").strip():
+            db.add(WeightLog(dog_id=dog.id, weight=new_weight, date=date.today()))
+            db.flush()
         _refresh_supplement_alerts(db, dog)
         # 检查勋章（如勇敢完成、到家纪念日等在编辑后可能触发）
         new_badges = check_badges(db, dog.id)
@@ -1170,7 +1358,7 @@ def api_dog_diet():
                 "message": "主人，我的档案里体重还没填呢，记得帮我补上，我才知道每天该吃多少哦～",
             }
 
-        age_stage = _get_age_stage(dog.birthday)
+        age_stage = _get_age_stage(dog.birthday, dog.breed)
         body_size = _get_body_size(dog.weight)
         foods = DIET_FOODS.get((age_stage, body_size))
 
@@ -1281,6 +1469,48 @@ def api_dog_diet():
         if diseases_str:
             disease_note = f"⚕️ 档案中记录有已知健康状况（{diseases_str}），此饮食建议仅供兽医参考，请在兽医指导下调整饮食方案。"
 
+        # 品种专属饮食提示
+        breed_diet_tips = {
+            "法斗": "短鼻犬吃饭容易呛到，建议用小颗粒狗粮或把食物切碎；少食多餐有助于防止胀气和反流～",
+            "英斗": "英斗容易发胖给关节增加负担，请严格控制每日喂食量，少给零食，用慢食碗能防止吃太快～",
+            "巴哥": "巴哥也是短鼻犬，食物切小块更安全，体重管理很关键——过胖会进一步压迫呼吸！",
+            "金毛": "金毛是著名'吃货'但容易吃出胰腺炎和髋关节问题，控制总热量、保持理想体重就是最好的保健品～",
+            "拉布拉多": "拉布是贪吃界冠军，也是最容易肥胖的品种之一！严格控制喂食量，高油高脂的人食绝对禁止～",
+            "德牧": "德牧肠胃较敏感，建议选择易消化的食材、添加益生菌。饭后至少休息1小时再运动，预防胃扭转！",
+            "柯基": "柯基体质容易发胖，胖起来对长脊椎是灾难。每天精准称重喂食，零食控制在总热量10%以内～",
+            "贵宾": "贵宾皮肤敏感，饮食中多加Omega-3脂肪酸（鱼油）有助于皮肤健康和毛发光泽～",
+            "泰迪": "泰迪皮肤敏感，饮食中多加Omega-3脂肪酸（鱼油）有助于皮肤健康和毛发光泽～",
+            "比熊": "比熊容易食物过敏导致皮肤痒，建议选择单一蛋白源的低敏配方，逐步排查过敏原～",
+            "柴犬": "柴犬是过敏体质高发品种，如果频繁抓痒，可以尝试排除法饮食——从单一蛋白+单一碳水开始排查～",
+            "豆柴": "柴犬是过敏体质高发品种，如果频繁抓痒，可以尝试排除法饮食——从单一蛋白+单一碳水开始排查～",
+            "哈士奇": "哈士奇有锌缺乏倾向，可能导致皮肤问题和脱毛。饮食中可添加适量牛肉、羊肉等富锌食材～",
+            "阿拉斯加": "阿拉斯加容易锌缺乏，牛肉、羊肉等红肉是补锌好选择。大型犬关节保护也很重要～",
+            "杜宾": "杜宾心脏健康需关注牛磺酸摄入。鸡心、火鸡肉等富含牛磺酸，对心肌保护有帮助～",
+            "边牧": "边牧运动量大、代谢率高，需要充足的优质蛋白维持肌肉和体力，运动日可适当增加喂食量～",
+            "秋田": "秋田是深胸犬，胃扭转风险高于平均水平。每天2-3顿分食，饭后至少1小时不运动～",
+            "松狮": "松狮容易过敏和皮肤问题，饮食以简单、天然为主，避免过多添加剂和频繁更换狗粮～",
+            "大白熊": "大白熊是巨型犬，胃扭转风险不容忽视。每天分2-3顿喂，饭后至少休息1.5小时～",
+            "萨摩耶": "萨摩耶有锌缺乏倾向，富锌食材（牛肉、羊肉）对皮肤和被毛健康很重要～",
+            "博美": "博美气管脆弱，进食时不要催促，食物切小块防呛。维持理想体重也能减轻气管压力～",
+            "吉娃娃": "吉娃娃嘴巴小、新陈代谢快，尤其幼犬时期容易低血糖。每天多分几顿（4-6顿），保证能量供应～",
+            "约克夏": "约克夏牙齿容易出问题，不要长期只吃软食，适当给磨牙零食帮助洁牙。小颗粒干粮对牙齿更友好～",
+            "迷你雪纳瑞": "雪纳瑞易患胰腺炎和高血脂，饮食一定要低脂！避开肥肉、油炸食物，选择瘦蛋白来源～",
+            "京巴": "京巴扁平脸吃饭费劲，食物切小、饭碗浅一些更容易吃到。保持体重对呼吸健康很重要～",
+            "西施": "西施扁平脸和京巴类似，食物切小粒更方便。皮肤敏感，避开人工色素和防腐剂对皮肤更好～",
+            "马尔济斯": "马尔济斯几乎不掉毛但对添加剂敏感，选择天然成分的狗粮，泪痕问题和饮食也有关联～",
+            "迷你杜宾": "迷你杜宾虽小但精力旺盛、代谢快，优质蛋白和适量脂肪能维持理想体态和能量～",
+            "中华田园犬": "田园犬基因多样性高、消化能力通常不错，但也要避免喂人食（高盐高油），保持定时定量～",
+            "银狐": "银狐双层被毛换毛量大，饮食中加Omega-3能让皮肤更健康、毛发更亮泽～",
+            "比格": "比格也是超级吃货，嗅觉驱使它们到处找吃的！严格控制喂食量、少吃多餐，否则分分钟变胖～",
+            "罗威纳": "罗威纳作为大型工作犬，幼犬期生长快但关节脆弱，不要过度补钙或喂食过多导致生长过快～",
+        }
+        breed_tip = ""
+        if dog.breed:
+            for key, tip in breed_diet_tips.items():
+                if key in dog.breed:
+                    breed_tip = tip
+                    break
+
         return {
             "ready": True,
             "dog_name": dog.name,
@@ -1306,6 +1536,7 @@ def api_dog_diet():
             "allergy_note": allergy_note,
             "disease_note": disease_note,
             "hypoglycemia_note": hypoglycemia_note,
+            "breed_tip": breed_tip,
         }
 
 
@@ -1759,9 +1990,12 @@ def api_create_weight_log(payload: WeightLogCreate):
             raise HTTPException(status_code=404, detail="找不到这只狗狗，主人先建档吧～")
         wl = WeightLog(dog_id=payload.dog_id, weight=payload.weight, date=payload.date)
         db.add(wl)
-        # 同步更新狗狗档案中的最新体重
-        dog.weight = payload.weight
         db.flush()
+        # 同步更新狗狗档案中的最新体重（取日期最近的那条记录）
+        latest_log = db.query(WeightLog).filter(WeightLog.dog_id == payload.dog_id).order_by(WeightLog.date.desc()).first()
+        if latest_log:
+            dog.weight = latest_log.weight
+            db.flush()
         # 检查并授予勋章
         new_badges = check_badges(db, payload.dog_id)
         return {
@@ -1771,6 +2005,58 @@ def api_create_weight_log(payload: WeightLogCreate):
         }
 
 
+@app.delete("/api/weight_log/{log_id}")
+def api_delete_weight_log(log_id: int):
+    """删除一条体重记录"""
+    with get_db() as db:
+        dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
+        if not dog:
+            raise HTTPException(status_code=404, detail="还没有狗狗档案～")
+        wl = db.query(WeightLog).filter(WeightLog.id == log_id, WeightLog.dog_id == dog.id).first()
+        if not wl:
+            raise HTTPException(status_code=404, detail="找不到这条体重记录哦～")
+        db.delete(wl)
+        db.flush()
+        # 重新同步最新体重
+        latest_log = db.query(WeightLog).filter(WeightLog.dog_id == dog.id).order_by(WeightLog.date.desc()).first()
+        if latest_log:
+            dog.weight = latest_log.weight
+        db.flush()
+        return {"message": "体重记录已删除～🐾"}
+
+
+@app.post("/api/bcs")
+def api_record_bcs(payload: dict):
+    """记录一次 BCS 体况评估"""
+    with get_db() as db:
+        dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
+        if not dog:
+            raise HTTPException(status_code=404, detail="还没有狗狗档案～")
+        bcs_state = (payload.get("bcs_state") or "").strip()
+        if bcs_state not in ("thin", "ideal", "heavy"):
+            raise HTTPException(status_code=400, detail="bcs_state 必须是 thin / ideal / heavy")
+        date_str = payload.get("date") or date.today().isoformat()
+        record = BcsLog(dog_id=dog.id, bcs_state=bcs_state, date=date.fromisoformat(date_str))
+        db.add(record)
+        db.flush()
+        # 检查勋章
+        new_badges = check_badges(db, dog.id)
+        return {"message": "体况评估已记录～🐾", "bcs_state": bcs_state, "new_badges": new_badges}
+
+
+@app.get("/api/bcs")
+def api_get_bcs():
+    """获取 BCS 评估历史和最新状态"""
+    with get_db() as db:
+        dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
+        if not dog:
+            return {"latest": None, "history": []}
+        logs = db.query(BcsLog).filter(BcsLog.dog_id == dog.id).order_by(BcsLog.date.desc()).all()
+        history = [{"id": l.id, "bcs_state": l.bcs_state, "date": l.date.isoformat()} for l in logs]
+        latest = history[0]["bcs_state"] if history else None
+        return {"latest": latest, "latest_date": history[0]["date"] if history else None, "history": history}
+
+
 def _get_deworm_interval(dog_birthday: date, breed: str) -> int:
     """根据狗狗年龄和品种返回驱虫间隔天数。幼犬（<6个月）每月一次，成年犬按品种。"""
     today = date.today()
@@ -1778,33 +2064,55 @@ def _get_deworm_interval(dog_birthday: date, breed: str) -> int:
     if age_months < 6:
         return 30
     # 成年犬品种映射（当前统一90天，预留扩展入口）
-    breed_map = {"金毛": 90, "拉布拉多": 90, "柯基": 90, "贵宾": 90, "豆柴": 90, "混血": 90, "其他": 90}
+    breed_map = {"泰迪": 90, "比熊": 90, "博美": 90, "吉娃娃": 90, "约克夏": 90, "迷你雪纳瑞": 90, "巴哥": 90, "京巴": 90, "西施": 90, "马尔济斯": 90, "迷你杜宾": 90, "柴犬": 90, "豆柴": 90, "柯基": 90, "法斗": 90, "英斗": 90, "贵宾": 90, "中华田园犬": 90, "银狐": 90, "比格": 90, "金毛": 90, "拉布拉多": 90, "德牧": 90, "萨摩耶": 90, "边牧": 90, "哈士奇": 90, "阿拉斯加": 90, "秋田": 90, "松狮": 90, "罗威纳": 90, "杜宾": 90, "大白熊": 90, "混血": 90, "其他": 90}
     return breed_map.get(breed, 90)
 
 
-def _calc_bath_interval(weight_str: Optional[str]) -> int:
-    """根据体重计算建议洗澡间隔天数。体重为空时默认10天。"""
+def _calc_bath_interval(weight_str: Optional[str], breed: Optional[str] = None) -> int:
+    """根据体重+品种计算建议洗澡间隔天数。短鼻犬更频繁，双层被毛犬更稀疏。"""
+    # 品种调整系数
+    SHORT_NOSE_BREEDS = ["法斗", "英斗", "巴哥", "京巴", "西施"]  # 皮肤皱褶多，需勤洗
+    DOUBLE_COAT_BREEDS = ["哈士奇", "萨摩耶", "阿拉斯加", "秋田", "松狮", "银狐", "柴犬", "金毛", "边牧", "德牧", "德国牧羊犬", "博美"]  # 双层被毛，洗太勤伤皮肤
+
+    # 默认体重基准
     if not weight_str or not weight_str.strip():
-        return 10
-    try:
-        kg = float(weight_str.strip().replace("kg", "").replace("KG", "").strip())
-    except ValueError:
-        return 10
-    if kg < 5:
-        return 14
-    elif kg < 15:
-        return 14
+        base = 10
     else:
-        return 10
+        try:
+            kg = float(weight_str.strip().replace("kg", "").replace("KG", "").strip())
+        except ValueError:
+            base = 10
+        else:
+            if kg < 5:
+                base = 14
+            elif kg < 15:
+                base = 14
+            else:
+                base = 10
+
+    # 品种调整
+    if breed:
+        if any(b in breed for b in SHORT_NOSE_BREEDS):
+            return max(7, base - 4)   # 7-10天，皱褶需要勤清洁
+        if any(b in breed for b in DOUBLE_COAT_BREEDS):
+            return min(30, base + 10)  # 20-30天，双层被毛不宜太勤
+    return base
 
 
-def _get_age_stage(birthday: date) -> str:
-    """根据生日返回年龄阶段：幼犬/成犬/老年犬"""
+def _get_age_stage(birthday: date, breed: Optional[str] = None) -> str:
+    """根据生日返回年龄阶段：幼犬/成犬/老年犬（大型犬老年阈值提前）"""
     today = date.today()
     age_months = (today.year - birthday.year) * 12 + (today.month - birthday.month)
     if age_months <= 12:
         return "幼犬"
-    elif age_months < 84:  # 7岁 = 84个月
+    # 大型犬寿命较短，老年阶段提前
+    large_breeds = ["金毛", "拉布拉多", "德牧", "德国牧羊犬", "阿拉斯加", "萨摩耶",
+                    "罗威纳", "杜宾", "大白熊", "秋田", "哈士奇", "边牧", "松狮",
+                    "伯恩山", "大丹犬", "英斗"]
+    giant_breeds = ["大白熊", "伯恩山", "大丹犬", "阿拉斯加", "罗威纳"]
+    senior_months = 72 if (breed and any(b in breed for b in giant_breeds)) else \
+                    78 if (breed and any(b in breed for b in large_breeds)) else 84
+    if age_months < senior_months:
         return "成犬"
     else:
         return "老年犬"
@@ -1993,7 +2301,7 @@ def _calc_daily_grams(dog_birthday: date, weight_kg: float, neutered: str, gende
     rer = _calc_rer(weight_kg)
 
     # Step 2: 生命阶段系数
-    age_stage = _get_age_stage(dog_birthday)
+    age_stage = _get_age_stage(dog_birthday)  # 饮食年龄阶段不区分品种
     if age_stage == "幼犬":
         coeff = 2.5
     elif neutered == "是":
@@ -2036,7 +2344,7 @@ SUPPLEMENT_RULES = [
         "supplement": "关节保护（葡萄糖胺 + 软骨素）",
         "priority": 1,
         "condition": lambda dog, stats: (
-            dog.breed and any(b in dog.breed for b in ["金毛", "拉布拉多", "德牧", "德国牧羊犬", "阿拉斯加", "萨摩耶", "伯恩山", "罗威纳"])
+            dog.breed and any(b in dog.breed for b in ["金毛", "拉布拉多", "德牧", "德国牧羊犬", "阿拉斯加", "萨摩耶", "伯恩山", "罗威纳", "杜宾", "大白熊", "秋田", "哈士奇", "边牧", "松狮"])
             and stats["age_months"] >= 6
         ),
         "reason": "大型犬髋关节发育风险高，预防关节问题",
@@ -2055,7 +2363,7 @@ SUPPLEMENT_RULES = [
         "supplement": "关节保护（葡萄糖胺 + 软骨素，尤其脊椎）",
         "priority": 1,
         "condition": lambda dog, stats: (
-            dog.breed and any(b in dog.breed for b in ["柯基", "腊肠", "巴吉度", "斗牛犬", "法斗", "英斗"])
+            dog.breed and any(b in dog.breed for b in ["柯基", "法斗", "英斗", "京巴", "西施"])
             and stats["age_months"] >= 12
         ),
         "reason": "短腿长身犬种易患椎间盘疾病",
@@ -2101,7 +2409,7 @@ SUPPLEMENT_RULES = [
         "supplement": "美毛产品（卵磷脂 + 生物素）",
         "priority": 3,
         "condition": lambda dog, stats: (
-            dog.breed and any(b in dog.breed for b in ["贵宾", "泰迪", "比熊", "马尔济斯", "雪纳瑞", "约克夏"])
+            dog.breed and any(b in dog.breed for b in ["贵宾", "泰迪", "比熊", "马尔济斯", "迷你雪纳瑞", "约克夏"])
             and stats["age_months"] >= 6
         ),
         "reason": "卷毛易打结、皮肤脆弱，需养护毛发",
@@ -2131,6 +2439,39 @@ SUPPLEMENT_RULES = [
         "reason": "未绝育公犬易出现前列腺肥大等问题",
         "woof": "主人，我们没绝育的男孩子，前列腺要早点保养，南瓜籽就很好哦～",
     },
+    {
+        "id": "skin_sensitive_breed",
+        "supplement": "皮肤养护（Omega-3 鱼油 + 维生素E）",
+        "priority": 2,
+        "condition": lambda dog, stats: (
+            dog.breed and any(b in dog.breed for b in ["法斗", "英斗", "巴哥", "京巴", "西施"])
+            and stats["age_months"] >= 6
+        ),
+        "reason": "皮肤皱褶多/敏感品种易患皮炎，需养护皮肤屏障",
+        "woof": "我们这种皮肤敏感的狗狗，皱褶多容易藏细菌，Omega-3加维E能让皮肤抵抗力更强，减少痒痒和红疹～",
+    },
+    {
+        "id": "eye_care_breed",
+        "supplement": "眼部护理（叶黄素 + 维生素A + Omega-3）",
+        "priority": 2,
+        "condition": lambda dog, stats: (
+            dog.breed and any(b in dog.breed for b in ["巴哥", "京巴", "西施", "比熊", "马尔济斯"])
+            and stats["age_months"] >= 12
+        ),
+        "reason": "眼球突出/大眼睛品种易患角膜损伤、干眼症和泪痕问题",
+        "woof": "我的大眼睛虽然萌萌的但也脆弱，容易干涩和流眼泪。叶黄素和维A能保护我的视力和角膜健康哦～",
+    },
+    {
+        "id": "heart_large_breed",
+        "supplement": "心脏保健（辅酶Q10 + 牛磺酸 + 左旋肉碱）",
+        "priority": 1,
+        "condition": lambda dog, stats: (
+            dog.breed and any(b in dog.breed for b in ["杜宾", "金毛", "拉布拉多", "德牧", "德国牧羊犬", "大丹犬"])
+            and stats["age_months"] >= 24
+        ),
+        "reason": "大型/巨型犬扩张型心肌病(DCM)风险较高，需心脏保养",
+        "woof": "像我们这样的大型犬，心脏要扛起整个身体很辛苦的。辅酶Q10和牛磺酸能帮心脏跳得更有力，老了也不容易喘～",
+    },
 ]
 
 # 保健品去重 key：归并同一种保健品的多个原因
@@ -2138,6 +2479,9 @@ SUPPLEMENT_MERGE_KEYS = {
     "关节保护（葡萄糖胺 + 软骨素）": "joint_protect",
     "关节保护（葡萄糖胺 + 软骨素，尤其脊椎）": "joint_protect",
     "关节保护 + 抗氧化剂（葡萄糖胺、维生素E、辅酶Q10）": "joint_protect",
+    "皮肤养护（Omega-3 鱼油 + 维生素E）": "skin_care",
+    "眼部护理（叶黄素 + 维生素A + Omega-3）": "eye_care",
+    "心脏保健（辅酶Q10 + 牛磺酸 + 左旋肉碱）": "heart_care",
 }
 
 
@@ -2146,7 +2490,7 @@ def _calc_supplements(db, dog: Dog) -> List[dict]:
     today = date.today()
     age_months = (today.year - dog.birthday.year) * 12 + (today.month - dog.birthday.month)
     weight_kg = _parse_weight_kg(dog.weight)
-    age_stage = _get_age_stage(dog.birthday)
+    age_stage = _get_age_stage(dog.birthday, dog.breed)
 
     # 统计异常行为次数
     events = db.query(Event).filter(Event.dog_id == dog.id, Event.type == "异常行为").all()
@@ -2171,6 +2515,63 @@ def _calc_supplements(db, dog: Dog) -> List[dict]:
         "vomit_count": vomit_count,
         "diarrhea_count": diarrhea_count,
     }
+
+    # ---- 季节感知：不同季节调整保健品优先度 ----
+    current_month = today.month
+    season_boosts = {}  # merge_key -> priority boost
+    if current_month in (6, 7, 8):  # 夏季：活动量大，皮肤日晒多
+        season_boosts["joint_protect"] = -0.5  # 提升关节保护优先级
+        season_boosts["skin_care"] = -0.5      # 提升皮肤养护优先级
+    elif current_month in (12, 1, 2):  # 冬季：寒冷关节僵硬，空气干燥
+        season_boosts["joint_protect"] = -0.5
+        season_boosts["skin_care"] = -0.5
+        season_boosts["multi_vitamin"] = -0.3
+
+    # ---- 病史关键词 → 保健品推荐 ----
+    diseases_raw = (dog.diseases or "").strip()
+    disease_extra_rules = []
+    if diseases_raw:
+        dl = diseases_raw.lower()
+        if any(kw in dl for kw in ["关节", "髋", "髌骨", "跛行", "arthritis"]):
+            disease_extra_rules.append({
+                "merge_key": "joint_protect",
+                "supplement": "关节保护（葡萄糖胺 + 软骨素）",
+                "reason": "档案中有关节相关病史，需特别关注关节养护",
+                "woof": "主人，我以前的关节不舒服过，日常养护可不能偷懒哦～",
+                "priority": 1,
+            })
+        if any(kw in dl for kw in ["心脏", "心", "heart", "dcm"]):
+            disease_extra_rules.append({
+                "merge_key": "heart_care",
+                "supplement": "心脏保护（辅酶Q10 + 牛磺酸 + 左旋肉碱）",
+                "reason": "档案中有心脏相关病史，需关注心脏健康",
+                "woof": "主人，保护心脏要从日常做起，辅酶Q10对我很重要～",
+                "priority": 1,
+            })
+        if any(kw in dl for kw in ["皮肤", "过敏", "皮炎", "红疹", "痒", "allergy", "skin"]):
+            disease_extra_rules.append({
+                "merge_key": "skin_care",
+                "supplement": "皮肤养护（Omega-3 鱼油 + 维生素E）",
+                "reason": "档案中有皮肤或过敏相关病史",
+                "woof": "主人，皮肤问题容易反复，Omega-3能让我的皮肤更健康～",
+                "priority": 2,
+            })
+        if any(kw in dl for kw in ["胰腺", "pancreatitis"]):
+            disease_extra_rules.append({
+                "merge_key": "digestive_care",
+                "supplement": "消化养护（益生菌 + 消化酶）",
+                "reason": "档案中有胰腺相关病史，需低脂饮食和消化支持",
+                "woof": "主人，我的胰腺需要特别呵护，益生菌和低脂饮食对我很重要～",
+                "priority": 1,
+            })
+        if any(kw in dl for kw in ["眼", "白内障", "青光眼", "视力"]):
+            disease_extra_rules.append({
+                "merge_key": "eye_care",
+                "supplement": "眼部护理（叶黄素 + 维生素A + Omega-3）",
+                "reason": "档案中有眼部相关病史，需加强眼部保健",
+                "woof": "主人，保护眼睛从现在开始，叶黄素对我很重要～",
+                "priority": 2,
+            })
 
     # 检查过敏源
     allergies_raw = (dog.allergies or "").strip()
@@ -2236,6 +2637,31 @@ def _calc_supplements(db, dog: Dog) -> List[dict]:
                 "_best_pri": rule["priority"],
             }
 
+    # ---- 病史规则注入 ----
+    for dr in disease_extra_rules:
+        mk = SUPPLEMENT_MERGE_KEYS.get(dr["supplement"], dr["merge_key"])
+        if mk in merged:
+            if dr["reason"] not in merged[mk]["reasons"]:
+                merged[mk]["reasons"].append(dr["reason"])
+            merged[mk]["priority"] = min(merged[mk]["priority"], dr["priority"])
+            if dr["priority"] < merged[mk].get("_best_pri", 99):
+                merged[mk]["woof"] = dr["woof"]
+                merged[mk]["_best_pri"] = dr["priority"]
+                merged[mk]["supplement"] = dr["supplement"]
+        else:
+            merged[mk] = {
+                "supplement": dr["supplement"],
+                "reasons": [dr["reason"]],
+                "woof": dr["woof"],
+                "priority": dr["priority"],
+                "_best_pri": dr["priority"],
+            }
+
+    # ---- 季节优先级提升 ----
+    for mk, boost in season_boosts.items():
+        if mk in merged:
+            merged[mk]["priority"] = max(0.5, merged[mk]["priority"] + boost)
+
     # 按优先级排序
     result = sorted(merged.values(), key=lambda x: x["priority"])
     for item in result:
@@ -2244,6 +2670,11 @@ def _calc_supplements(db, dog: Dog) -> List[dict]:
         suffix = "\n（参考剂量请遵兽医指导，不可使用人用保健品替代哦～）"
         if allergy_warning:
             suffix = "\n" + allergy_warning + suffix
+        # ---- 过敏正向推荐替代品 ----
+        if has_fish_allergy and "鱼油" in item.get("supplement", ""):
+            suffix = suffix.replace(allergy_warning, allergy_warning + "（💡 鱼油替代：可选择藻油或亚麻籽油补充 Omega-3）")
+        if has_chicken_allergy and any(kw in item.get("supplement", "") for kw in ["维生素", "营养"]):
+            suffix = suffix.replace(allergy_warning, allergy_warning + "（💡 可选择不含禽类成分的品牌）")
         item["woof_full"] = item["woof"] + suffix
     return result
 
@@ -2415,9 +2846,18 @@ def api_health_check():
             days_overdue = (today - next_bath).days
             if days_overdue >= 0:
                 days_since = (today - dog.last_bath_date).days
+                # 品种特定洗护提示
+                breed_bath_tip = ""
+                if dog.breed:
+                    short_nose = ["法斗", "英斗", "巴哥", "京巴", "西施"]
+                    double_coat = ["哈士奇", "萨摩耶", "阿拉斯加", "秋田", "松狮", "银狐", "柴犬", "金毛", "边牧", "德牧", "博美"]
+                    if any(b in dog.breed for b in short_nose):
+                        breed_bath_tip = "（洗完记得把皮肤褶皱彻底吹干哦～）"
+                    elif any(b in dog.breed for b in double_coat):
+                        breed_bath_tip = "（双层被毛不需要太频繁洗澡，用针梳梳理浮毛就好～）"
                 reminders.append({
                     "type": "洗澡澡",
-                    "text": f"主人，掐爪一算我都{days_since}天没洗澡啦，身上都有小狗味儿了！快带我洗香香吧～🛁",
+                    "text": f"主人，掐爪一算我都{days_since}天没洗澡啦，身上都有小狗味儿了！快带我洗香香吧～🛁" + breed_bath_tip,
                 })
 
         # 保健品提醒：刷新计算并随机加入一条（优先级低于洗澡）
@@ -3318,7 +3758,8 @@ body {
   width: 64px; height: 64px; border-radius: 50%;
   background: #FDF8F2; border: 2px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 2em; cursor: pointer; overflow: hidden;
+  font-size: 2em; cursor: pointer; overflow: visible;
+  position: relative;
   transition: border-color 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
 }
@@ -3562,20 +4003,68 @@ body {
 .hp-icon { font-size: 1.5em; }
 .hp-name { font-size: 1.05em; font-weight: 700; color: var(--brown); }
 .hp-snapshot { margin-bottom: 4px; }
-.hp-insight {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 8px 0; border-bottom: 1px dotted var(--border);
-  font-size: 0.88em; line-height: 1.55; color: var(--brown-light);
+
+/* 健康档案标签行 */
+.hp-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.hp-tag {
+  font-size: 0.8em; padding: 3px 10px; border-radius: 12px;
+  font-weight: 600; white-space: nowrap;
 }
-.hp-insight:last-child { border-bottom: none; }
-.hp-insight-icon { flex-shrink: 0; font-size: 1.1em; }
-.hp-insight-text { flex: 1; }
-.hp-insight-muted { opacity: 0.65; font-size: 0.83em; }
-.hp-insight-action {
-  color: var(--orange); font-weight: 600; cursor: pointer;
-  white-space: nowrap; font-size: 0.92em;
+.hp-tag-good { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
+.hp-tag-warn { background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80; }
+.hp-tag-info { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
+.hp-tag-missing {
+  background: transparent; color: var(--muted);
+  border: 1px dashed var(--border); cursor: pointer;
 }
-.hp-insight-action:hover { text-decoration: underline; }
+.hp-tag-missing:hover { border-color: var(--orange); color: var(--orange); }
+
+/* tooltip 气泡 */
+.hp-tip-trigger { position: relative; cursor: pointer; }
+.hp-tip-bubble {
+  position: absolute; top: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  background: #E07800; color: #FFF; font-size: 0.82em; font-weight: 500;
+  padding: 9px 16px; border-radius: 12px; white-space: nowrap;
+  text-align: center;
+  pointer-events: none; opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 999; box-shadow: 0 6px 20px rgba(224,120,0,0.28);
+}
+.hp-tip-arrow {
+  position: absolute; top: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent; border-bottom-color: #E07800;
+  pointer-events: none; opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 999;
+}
+.hp-tip-trigger:hover .hp-tip-bubble,
+.hp-tip-trigger:hover .hp-tip-arrow,
+.hp-tip-trigger.tip-show .hp-tip-bubble,
+.hp-tip-trigger.tip-show .hp-tip-arrow { opacity: 1; }
+
+/* 行动引导行 */
+.hp-action-row {
+  font-size: 0.82em; color: var(--orange); margin-bottom: 6px;
+  cursor: pointer; padding: 5px 10px; border-radius: 8px;
+  background: var(--orange-light); display: inline-flex; align-items: center; gap: 4px;
+}
+.hp-action-row:hover { background: #FFE0B2; }
+
+/* 详情区 */
+.hp-detail-toggle {
+  font-size: 0.76em; color: var(--muted); cursor: pointer;
+  padding: 2px 0; user-select: none;
+}
+.hp-detail-toggle:hover { color: var(--brown); }
+.hp-detail {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px dotted var(--border);
+  font-size: 0.82em; line-height: 1.7; color: var(--brown-light);
+}
+.hp-detail-item { margin-bottom: 6px; }
+
 .hp-empty { text-align: center; padding: 16px 0; }
 .hp-empty-icon { font-size: 2.8em; margin-bottom: 6px; }
 .hp-empty-title { font-weight: 700; color: var(--brown); font-size: 1em; margin-bottom: 4px; }
@@ -3653,23 +4142,104 @@ body {
   padding: 6px 10px; background: #FFFDF7; border-radius: 6px;
 }
 
-/* ===== BCS 体况评分 ===== */
-.bcs-guide { font-size: 0.88em; }
-.bcs-intro { color: var(--brown-light); margin-bottom: 12px; line-height: 1.5; }
-.bcs-scale { display: flex; flex-direction: column; gap: 6px; }
-.bcs-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; border-radius: 8px; background: #FFFDF7;
+/* 体重趋势提醒 + 异常行为告警 */
+.weight-trend-alert, .abnormal-alert {
+  margin-top: 8px; font-size: 0.84em;
+  padding: 10px 14px; border-radius: 10px;
+  line-height: 1.5; display: flex; align-items: center; gap: 8px;
+}
+.weight-trend-alert { background: #FFF8E1; color: #E65100; border: 1px solid #FFE0B2; }
+.abnormal-alert { background: #FFF0F0; color: #B71C1C; border: 1px solid #FFCDD2; }
+
+/* 周年报告 */
+.anniversary-stat {
+  background: var(--orange-light); border-radius: 12px;
+  padding: 12px 16px; text-align: center; min-width: 80px;
+}
+.anniversary-stat-num { font-size: 1.5em; font-weight: 700; color: var(--orange); }
+.anniversary-stat-label { font-size: 0.75em; color: var(--brown-light); margin-top: 2px; }
+
+/* ===== 体重记录列表（支持滑动删除）===== */
+.weight-log-item {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px dotted var(--border);
+}
+.weight-log-item-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 0.85em;
+  background: var(--card);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+  touch-action: pan-y;
+}
+.weight-log-delete-bg {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 72px;
+  background: var(--red);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82em;
+  font-weight: 600;
+  z-index: 1;
+  cursor: pointer;
+  border-radius: 0 6px 6px 0;
+}
+.weight-log-item.swiped .weight-log-item-inner {
+  transform: translateX(-72px);
+}
+
+/* 自定义右键菜单 */
+.weight-context-menu {
+  position: fixed;
+  background: #fff;
   border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+  z-index: 9999;
+  min-width: 100px;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
 }
-.bcs-dot {
-  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+.weight-context-menu-item {
+  padding: 10px 16px;
+  font-size: 0.88em;
+  cursor: pointer;
+  color: var(--red);
+  transition: background 0.15s;
 }
-.bcs-dot.too-thin { background: #FFC107; }
-.bcs-dot.ideal { background: #4CAF50; }
-.bcs-dot.overweight { background: #FF9800; }
-.bcs-dot.obese { background: #F44336; }
-.bcs-desc { margin-left: auto; font-size: 0.82em; color: var(--muted); }
+.weight-context-menu-item:hover {
+  background: #FFF5F5;
+}
+
+/* ===== BCS 体况评分 - 互动版 ===== */
+.bcs-guide { font-size: 0.88em; }
+.bcs-intro { color: var(--brown-light); margin-bottom: 14px; line-height: 1.5; }
+.bcs-state-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.bcs-state-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px; border-radius: var(--radius);
+  background: #FFFDF7; border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.2s;
+  text-align: center; user-select: none;
+}
+.bcs-state-card:hover { border-color: #F4A460; background: #FFF8F0; }
+.bcs-state-card.selected { border-color: #F4A460; background: #FFF3E4; box-shadow: 0 0 0 3px rgba(244,164,96,0.15); }
+.bcs-state-card .bcs-icon { font-size: 1.8em; line-height: 1; }
+.bcs-state-card .bcs-label { font-weight: 700; font-size: 0.95em; color: #4A3428; }
+.bcs-state-card .bcs-hint { font-size: 0.78em; color: #6B5748; line-height: 1.35; }
+.bcs-state-card .bcs-range { font-size: 0.72em; color: #B8956E; margin-top: 2px; }
+.bcs-result-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; margin-left: 6px; }
+.bcs-result-badge.thin { background: #FFF3CD; color: #856404; }
+.bcs-result-badge.ideal { background: #D4EDDA; color: #155724; }
+.bcs-result-badge.heavy { background: #FFE0B2; color: #E65100; }
 
 /* ===== 健康提醒页 ===== */
 .reminders-intro {
@@ -4287,6 +4857,35 @@ body {
 .exchange-confirm-ok:hover { transform: scale(1.04); box-shadow: 0 4px 14px rgba(232,137,58,0.35); }
 .exchange-confirm-ok:active { transform: scale(0.96); }
 
+/* ===== 通用确认弹窗 ===== */
+.generic-confirm-card {
+  background: #FFFBF5;
+  border-radius: 16px;
+  padding: 24px 20px 18px;
+  max-width: 340px; width: 88%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+  animation: modalSlideUp 0.25s ease;
+}
+.generic-confirm-card .gc-icon { font-size: 2.2em; margin-bottom: 10px; }
+.generic-confirm-card .gc-message { font-size: 0.93em; color: var(--brown); margin-bottom: 6px; line-height: 1.5; }
+.generic-confirm-card .gc-sub { font-size: 0.8em; color: var(--muted); margin-bottom: 16px; }
+.generic-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+.generic-confirm-cancel {
+  background: #f0f0f0; color: #666; border: none;
+  padding: 10px 22px; border-radius: 25px; font-size: 0.93em; cursor: pointer;
+  transition: background 0.2s;
+}
+.generic-confirm-cancel:hover { background: #e0e0e0; }
+.generic-confirm-ok {
+  background: var(--orange); color: #fff; border: none;
+  padding: 10px 22px; border-radius: 25px; font-size: 0.93em; font-weight: 600; cursor: pointer;
+  transition: all 0.2s;
+}
+.generic-confirm-ok:hover { background: #e0762d; }
+.generic-confirm-ok.danger { background: #E53935; }
+.generic-confirm-ok.danger:hover { background: #C62828; }
+
 /* ===== Toast 优化版 ===== */
 .toast-container {
   position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
@@ -4404,6 +5003,12 @@ body {
   margin-bottom: 3px;
 }
 .form-col label .required { color: var(--red); }
+.form-col label .optional { color: var(--muted); font-weight: 400; font-size: 0.9em; }
+.form-col:focus-within label { color: var(--brown); }
+.form-col.error input, .form-col.error select, .form-col.error textarea { border-color: var(--red); box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.08); }
+.form-col .field-error { color: var(--red); font-size: 0.78em; margin-top: 3px; display: none; }
+.form-col.error .field-error { display: block; }
+.field-hint { color: var(--muted); font-size: 0.78em; margin-top: 3px; }
 input, select, textarea {
   width: 100%;
   padding: 9px 12px;
@@ -4451,6 +5056,27 @@ input[type="file"]::file-selector-button {
 }
 input[type="file"]::file-selector-button:hover {
   background: var(--orange-dark);
+}
+
+/* 体重输入框 + kg 后缀 */
+.weight-input-wrap {
+  display: flex; align-items: center; width: 100%;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  background: #FFFAF2; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.weight-input-wrap:focus-within {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.12);
+}
+.weight-input-wrap input {
+  flex: 1; min-width: 0; border: none; box-shadow: none;
+  background: transparent; padding: 9px 6px 9px 12px;
+}
+.weight-input-wrap input:focus { outline: none; box-shadow: none; }
+.weight-unit {
+  flex-shrink: 0; padding: 0 12px 0 4px;
+  font-size: 0.92em; font-weight: 600; color: var(--brown-light);
+  user-select: none;
 }
 
 /* 复选框组 */
@@ -4905,19 +5531,13 @@ input[type="file"]::file-selector-button:hover {
   max-width: 520px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   box-shadow: 0 12px 40px rgba(0,0,0,0.18);
   border: 1px solid var(--border);
   animation: modalSlideUp 0.35s ease;
-  scrollbar-width: thin;
-  scrollbar-color: #D4B896 #F5EDE4;
 }
-.modal-card::-webkit-scrollbar { width: 6px; }
-.modal-card::-webkit-scrollbar-track { background: #F5EDE4; border-radius: 3px; }
-.modal-card::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 3px; }
-.modal-card::-webkit-scrollbar-thumb:hover { background: #B8956E; }
 @keyframes modalSlideUp {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
@@ -4944,13 +5564,62 @@ input[type="file"]::file-selector-button:hover {
 .modal-body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-right: -4px;
+  scrollbar-width: thin;
+  scrollbar-color: #D4B896 transparent;
 }
+/* WebKit 滚动条美化 */
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+  margin-block: 4px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+  background: #D4B896;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  min-height: 40px;
+}
+.modal-body::-webkit-scrollbar-thumb:hover { background: #B8956E; }
+.modal-body::-webkit-scrollbar-thumb:active { background: #9B7B5A; }
+.modal-body::-webkit-scrollbar-corner { background: transparent; }
+
+/* select 下拉滚动条美化 */
+select {
+  scrollbar-width: thin;
+  scrollbar-color: #D4B896 transparent;
+}
+select::-webkit-scrollbar { width: 6px; }
+select::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+}
+select::-webkit-scrollbar-thumb {
+  background: #D4B896;
+  border-radius: 8px;
+  min-height: 30px;
+}
+select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
 
 .modal-footer {
-  text-align: center;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
   flex-shrink: 0;
-  margin-top: 4px;
-  padding: 14px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 16px 0 0;
   border-top: 1px solid var(--border);
 }
 
@@ -5502,6 +6171,90 @@ input[type="file"]::file-selector-button:hover {
   .qr-icon { font-size: 1.1em; }
   .qr-label { font-size: 0.74em; }
 }
+
+/* ===== 自定义下拉选择 ===== */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+.custom-select-trigger {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  font-size: 0.95em;
+  background: #FFFDF7;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--brown);
+  position: relative;
+  user-select: none;
+  transition: border-color 0.2s;
+}
+.custom-select-trigger::after {
+  content: '▾';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.8em;
+  pointer-events: none;
+  transition: transform 0.2s;
+}
+.custom-select.open .custom-select-trigger {
+  border-color: var(--orange);
+}
+.custom-select.open .custom-select-trigger::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #FFFDF7;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 1200;
+  display: none;
+  scrollbar-width: thin;
+  scrollbar-color: #D4B896 transparent;
+}
+.custom-select.open .custom-select-dropdown {
+  display: block;
+}
+.custom-select-dropdown::-webkit-scrollbar { width: 6px; }
+.custom-select-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+  margin-block: 4px;
+}
+.custom-select-dropdown::-webkit-scrollbar-thumb {
+  background: #D4B896;
+  border-radius: 8px;
+  min-height: 36px;
+}
+.custom-select-dropdown::-webkit-scrollbar-thumb:hover { background: #B8956E; }
+.custom-select-dropdown::-webkit-scrollbar-thumb:active { background: #9B7B5A; }
+.custom-select-option {
+  padding: 9px 14px;
+  font-size: 0.93em;
+  cursor: pointer;
+  color: var(--brown);
+  transition: background 0.15s;
+}
+.custom-select-option:hover {
+  background: #FFF3E0;
+}
+.custom-select-option.selected {
+  background: #FFF0DB;
+  color: var(--orange);
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -5518,7 +6271,7 @@ input[type="file"]::file-selector-button:hover {
       <div class="form-row">
         <div class="form-col"><label>我的名字 <span class="required">*</span></label><input id="mName" placeholder="汪！我的名字是…" maxlength="64" /></div>
         <div class="form-col"><label>我的品种 <span class="required">*</span></label>
-          <select id="mBreed"><option value="金毛">金毛</option><option value="拉布拉多">拉布拉多</option><option value="柯基">柯基</option><option value="贵宾">贵宾</option><option value="豆柴">豆柴</option><option value="混血">混血</option><option value="其他">其他</option></select>
+          <select id="mBreed"><option value="泰迪">泰迪</option><option value="比熊">比熊</option><option value="博美">博美</option><option value="吉娃娃">吉娃娃</option><option value="约克夏">约克夏</option><option value="迷你雪纳瑞">迷你雪纳瑞</option><option value="巴哥">巴哥</option><option value="京巴">京巴</option><option value="西施">西施</option><option value="马尔济斯">马尔济斯</option><option value="迷你杜宾">迷你杜宾</option><option value="柴犬">柴犬</option><option value="豆柴">豆柴</option><option value="柯基">柯基</option><option value="法斗">法斗</option><option value="英斗">英斗</option><option value="贵宾">贵宾</option><option value="中华田园犬">中华田园犬</option><option value="银狐">银狐</option><option value="比格">比格</option><option value="金毛">金毛</option><option value="拉布拉多">拉布拉多</option><option value="德牧">德牧</option><option value="萨摩耶">萨摩耶</option><option value="边牧">边牧</option><option value="哈士奇">哈士奇</option><option value="阿拉斯加">阿拉斯加</option><option value="秋田">秋田</option><option value="松狮">松狮</option><option value="罗威纳">罗威纳</option><option value="杜宾">杜宾</option><option value="大白熊">大白熊</option><option value="混血">混血</option><option value="其他">其他</option></select>
         </div>
       </div>
       <div class="form-row">
@@ -5527,23 +6280,23 @@ input[type="file"]::file-selector-button:hover {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>我的体重</label><input id="mWeight" placeholder="例：28kg" /></div>
-        <div class="form-col"><label>我的性别</label>
+        <div class="form-col"><label>我的体重 <span class="optional">(选填)</span></label><span class="weight-input-wrap"><input id="mWeight" inputmode="decimal" placeholder="例：28" onblur="cleanWeightOnBlur(this)" /><span class="weight-unit">kg</span></span></div>
+        <div class="form-col"><label>我的性别 <span class="optional">(选填)</span></label>
           <select id="mGender"><option value="">保密</option><option value="male">公</option><option value="female">母</option></select>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>绝育情况</label>
+        <div class="form-col"><label>绝育情况 <span class="optional">(选填)</span></label>
           <select id="mNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
         </div>
-        <div class="form-col"><label>过敏源</label><input id="mAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
+        <div class="form-col"><label>过敏源 <span class="optional">(选填)</span></label><input id="mAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>已知健康状况 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input id="mDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
-        <div class="form-col"><label>到家日期 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input type="text" id="mHomeDate" readonly placeholder="点击选择日期" style="width:100%;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('mHomeDate')" /></div>
+        <div class="form-col"><label>已知健康状况 <span class="optional">(选填)</span></label><input id="mDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
+        <div class="form-col"><label>到家日期 <span class="optional">(选填)</span></label><input type="text" id="mHomeDate" readonly placeholder="点击选择日期" style="width:100%;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('mHomeDate')" /></div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>我的照片 <span style="color:var(--muted);font-weight:400;">（可选）</span></label>
+        <div class="form-col"><label>我的照片 <span class="optional">(选填)</span></label>
           <input type="file" id="mPhoto" accept="image/jpeg,image/png" />
         </div>
       </div>
@@ -5579,7 +6332,7 @@ input[type="file"]::file-selector-button:hover {
     <!-- ===== 今日状态卡 ===== -->
     <div class="today-dashboard" id="todayDashboard">
       <div class="today-dashboard-main">
-        <div class="today-avatar" id="todayAvatar" title="点击查看/编辑档案" onclick="openEditModal()">🐶</div>
+        <div class="today-avatar" id="todayAvatar" title="点击查看/编辑档案" onclick="openEditModal()">🐶<span id="todayPhotoBadge" style="display:none;position:absolute;bottom:-2px;right:-2px;font-size:0.6em;background:#FF8A00;color:#fff;border-radius:50%;width:18px;height:18px;line-height:18px;text-align:center;" title="今天有新照片">📷</span></div>
         <div class="today-dashboard-info" id="todayDashboardInfo">
           <div class="skeleton" style="width:120px;"></div>
         </div>
@@ -5862,29 +6615,44 @@ input[type="file"]::file-selector-button:hover {
         <div class="skeleton" style="width:60%;"></div>
       </div>
       <div class="weight-stats-row" id="weightStatsRow" style="display:none;"></div>
+      <div id="weightTrendAlert" style="display:none;"></div>
     </div>
 
     <!-- 记录体重 -->
     <div class="card" id="cardWeightRecord">
       <div class="card-title">📝 记录体重</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input id="wlWeight" placeholder="体重，如：12.5kg" style="flex:2;min-width:120px;padding:10px 12px;font-size:0.95em;" />
+        <span class="weight-input-wrap" style="flex:2;min-width:120px;"><input id="wlWeight" inputmode="decimal" placeholder="体重，如：12.5" style="padding:10px 12px;font-size:0.95em;" onblur="cleanWeightOnBlur(this)" /><span class="weight-unit">kg</span></span>
         <input type="text" id="wlDate" readonly placeholder="选择日期" style="flex:1;min-width:120px;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('wlDate')" />
         <button class="btn btn-primary" id="btnAddWeight" style="flex:0 0 auto;">+ 记录体重</button>
       </div>
       <div class="weight-frequency-hint" id="weightFreqHint"></div>
     </div>
 
-    <!-- BCS 体况评分引导 -->
+    <!-- BCS 体况评分互动引导 -->
     <div class="card" id="cardBCS">
       <div class="card-title">🤚 体况评分（BCS）</div>
       <div class="bcs-guide">
-        <div class="bcs-intro">用 1-9 分评估狗狗体态。轻轻触摸肋骨来判断——这是比体重数字更科学的胖瘦标准。</div>
-        <div class="bcs-scale">
-          <div class="bcs-item"><span class="bcs-dot too-thin"></span><span>1-3 偏瘦</span><span class="bcs-desc">肋骨明显可见</span></div>
-          <div class="bcs-item"><span class="bcs-dot ideal"></span><span>4-5 理想</span><span class="bcs-desc">肋骨可摸到，覆薄脂肪</span></div>
-          <div class="bcs-item"><span class="bcs-dot overweight"></span><span>6-7 偏胖</span><span class="bcs-desc">肋骨难摸到，腰不明显</span></div>
-          <div class="bcs-item"><span class="bcs-dot obese"></span><span>8-9 肥胖</span><span class="bcs-desc">肋骨摸不到，腹部膨大</span></div>
+        <div class="bcs-intro">摸摸肋骨来判断胖瘦——比体重数字更科学。<span id="bcsResultBadge"></span><span id="bcsWeightHint" style="font-size:0.78em;color:var(--muted);margin-left:6px;"></span></div>
+        <div class="bcs-state-cards" id="bcsStateCards">
+          <div class="bcs-state-card" data-bcs="thin" onclick="selectBCS('thin')">
+            <div class="bcs-icon">🦴</div>
+            <div class="bcs-label">偏瘦</div>
+            <div class="bcs-hint">肋骨明显可见<br>腰线深陷</div>
+            <div class="bcs-range">BCS 1-3</div>
+          </div>
+          <div class="bcs-state-card" data-bcs="ideal" onclick="selectBCS('ideal')">
+            <div class="bcs-icon">🐕</div>
+            <div class="bcs-label">理想</div>
+            <div class="bcs-hint">肋骨可摸到<br>覆薄层脂肪</div>
+            <div class="bcs-range">BCS 4-5</div>
+          </div>
+          <div class="bcs-state-card" data-bcs="heavy" onclick="selectBCS('heavy')">
+            <div class="bcs-icon">🦭</div>
+            <div class="bcs-label">偏胖</div>
+            <div class="bcs-hint">肋骨难摸到<br>腰线不明显</div>
+            <div class="bcs-range">BCS 6-9</div>
+          </div>
         </div>
       </div>
     </div>
@@ -5961,6 +6729,18 @@ input[type="file"]::file-selector-button:hover {
   </div>
 </div>
 
+<!-- ===== 到家周年报告弹窗 ===== -->
+<div class="modal-overlay" id="anniversaryModalOverlay" style="display:none;">
+  <div class="modal-card" style="max-width:440px;text-align:center;">
+    <div style="font-size:3em;margin-bottom:8px;" id="anniversaryEmoji">🏠</div>
+    <h2 style="font-size:1.2em;color:var(--brown);margin-bottom:4px;" id="anniversaryTitle"></h2>
+    <div class="anniversary-stats" id="anniversaryStats" style="margin:16px 0;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;"></div>
+    <div style="font-size:0.88em;color:var(--brown-light);line-height:1.6;margin-bottom:8px;" id="anniversaryWoof"></div>
+    <div style="font-size:0.8em;color:var(--muted);margin-bottom:16px;" id="anniversaryDetail"></div>
+    <button class="btn btn-primary" onclick="closeAnniversaryModal()">谢谢你的陪伴 ❤️</button>
+  </div>
+</div>
+
 <!-- ===== 编辑档案弹窗 ===== -->
 <div class="modal-overlay" id="editModalOverlay" style="display:none;">
   <div class="modal-card">
@@ -5972,7 +6752,7 @@ input[type="file"]::file-selector-button:hover {
       <div class="form-row">
         <div class="form-col"><label>我的名字 <span class="required">*</span></label><input id="eName" placeholder="汪！我的名字是…" maxlength="64" /></div>
         <div class="form-col"><label>我的品种 <span class="required">*</span></label>
-          <select id="eBreed"><option value="金毛">金毛</option><option value="拉布拉多">拉布拉多</option><option value="柯基">柯基</option><option value="贵宾">贵宾</option><option value="豆柴">豆柴</option><option value="混血">混血</option><option value="其他">其他</option></select>
+          <select id="eBreed"><option value="泰迪">泰迪</option><option value="比熊">比熊</option><option value="博美">博美</option><option value="吉娃娃">吉娃娃</option><option value="约克夏">约克夏</option><option value="迷你雪纳瑞">迷你雪纳瑞</option><option value="巴哥">巴哥</option><option value="京巴">京巴</option><option value="西施">西施</option><option value="马尔济斯">马尔济斯</option><option value="迷你杜宾">迷你杜宾</option><option value="柴犬">柴犬</option><option value="豆柴">豆柴</option><option value="柯基">柯基</option><option value="法斗">法斗</option><option value="英斗">英斗</option><option value="贵宾">贵宾</option><option value="中华田园犬">中华田园犬</option><option value="银狐">银狐</option><option value="比格">比格</option><option value="金毛">金毛</option><option value="拉布拉多">拉布拉多</option><option value="德牧">德牧</option><option value="萨摩耶">萨摩耶</option><option value="边牧">边牧</option><option value="哈士奇">哈士奇</option><option value="阿拉斯加">阿拉斯加</option><option value="秋田">秋田</option><option value="松狮">松狮</option><option value="罗威纳">罗威纳</option><option value="杜宾">杜宾</option><option value="大白熊">大白熊</option><option value="混血">混血</option><option value="其他">其他</option></select>
         </div>
       </div>
       <div class="form-row">
@@ -5981,30 +6761,30 @@ input[type="file"]::file-selector-button:hover {
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>我的体重</label><input id="eWeight" placeholder="例：28kg" /></div>
-        <div class="form-col"><label>我的性别</label>
+        <div class="form-col"><label>我的体重</label><span class="weight-input-wrap"><input id="eWeight" inputmode="decimal" placeholder="例：28" onblur="cleanWeightOnBlur(this)" /><span class="weight-unit">kg</span></span></div>
+        <div class="form-col"><label>我的性别 <span class="optional">(选填)</span></label>
           <select id="eGender"><option value="">保密</option><option value="male">公</option><option value="female">母</option></select>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>绝育情况</label>
+        <div class="form-col"><label>绝育情况 <span class="optional">(选填)</span></label>
           <select id="eNeutered"><option value="未知">未知</option><option value="是">是</option><option value="否">否</option></select>
         </div>
-        <div class="form-col"><label>过敏源</label><input id="eAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
+        <div class="form-col"><label>过敏源 <span class="optional">(选填)</span></label><input id="eAllergies" placeholder="逗号分隔，如：鸡肉,谷物" /></div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>已知健康状况 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input id="eDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
-        <div class="form-col"><label>到家日期 <span style="color:var(--muted);font-weight:400;">（可选）</span></label><input type="text" id="eHomeDate" readonly placeholder="点击选择日期" style="width:100%;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('eHomeDate')" /></div>
+        <div class="form-col"><label>已知健康状况 <span class="optional">(选填)</span></label><input id="eDiseases" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>
+        <div class="form-col"><label>到家日期 <span class="optional">(选填)</span></label><input type="text" id="eHomeDate" readonly placeholder="点击选择日期" style="width:100%;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('eHomeDate')" /></div>
       </div>
       <div class="form-row">
-        <div class="form-col"><label>我的照片 <span style="color:var(--muted);font-weight:400;">（可选）</span></label>
+        <div class="form-col"><label>我的照片 <span class="optional">(选填)</span></label>
           <input type="file" id="ePhoto" accept="image/jpeg,image/png" />
         </div>
       </div>
-      <div style="display:flex;gap:12px;justify-content:center;padding-top:16px;border-top:1px solid var(--border);margin-top:4px;padding-bottom:4px;">
-        <button class="btn btn-outline" id="btnEditCancel">取消</button>
-        <button class="btn btn-primary" id="btnEditSave">保存</button>
-      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="btnEditCancel">取消</button>
+      <button class="btn btn-primary" id="btnEditSave">保存</button>
     </div>
   </div>
 </div>
@@ -6078,6 +6858,19 @@ input[type="file"]::file-selector-button:hover {
     </div>
     <div class="paw-history-list" id="pawHistoryList">
       <div class="paw-history-empty">加载中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 通用确认弹窗 ===== -->
+<div class="modal-overlay" id="genericConfirmOverlay" style="display:none;" onclick="if(event.target===this)closeConfirmDialog()">
+  <div class="generic-confirm-card">
+    <div class="gc-icon" id="gcIcon">⚠️</div>
+    <div class="gc-message" id="gcMessage"></div>
+    <div class="gc-sub" id="gcSub"></div>
+    <div class="generic-confirm-actions">
+      <button class="generic-confirm-cancel" onclick="closeConfirmDialog()">取消</button>
+      <button class="generic-confirm-ok" id="gcConfirmBtn" onclick="_gcFire()">确认</button>
     </div>
   </div>
 </div>
@@ -6218,6 +7011,35 @@ const DAILY_TIPS = [
   { text: "豆柴虽然是小型犬但精力充沛，每天至少30分钟运动加脑力游戏，否则可能会拆家哦～", tags: ["豆柴"] },
   { text: "豆柴换毛期掉毛量不比大型犬少！用底绒梳把底层绒毛梳掉能减少家里到处是毛～", tags: ["豆柴"] },
   { text: "混血狗狗通常比纯种更健康（杂交优势！），但还是要定期体检，每个汪星人都是独一无二的～", tags: ["混血", "其他"] },
+
+  // ===== 品种专属（续）=====
+  { text: "我们泰迪（其实就是贵宾啦）卷毛好看但不打理容易打结，6-8周美容一次，在家也要天天梳～", tags: ["泰迪"] },
+  { text: "比熊的白色卷毛虽然美但皮肤超敏感，用低敏沐浴露、定期驱虫，Omega-3对皮肤也好～", tags: ["比熊"] },
+  { text: "博美气管比较脆弱，项圈勒太紧会让我咳嗽，换成胸背带对气管更友好，也别让我太兴奋～", tags: ["博美"] },
+  { text: "吉娃娃是世界上最小的狗狗之一，但也最容易有牙齿问题！从小给我刷牙，别只喂软食～", tags: ["吉娃娃"] },
+  { text: "约克夏那一身丝滑长发其实是单层毛，几乎不掉毛，但要天天梳免得打结，头顶扎个小辫才不挡眼睛～", tags: ["约克夏"] },
+  { text: "迷你雪纳瑞的胡子是标志性的可爱，但每次喝水吃饭后要帮我擦擦，不然容易滋生细菌发黄～", tags: ["迷你雪纳瑞"] },
+  { text: "巴哥的大眼睛虽然可爱但很突出，容易受伤和干涩。别让我把头伸出车窗兜风，灰尘和异物会伤到角膜～", tags: ["巴哥"] },
+  { text: "京巴的短鼻子和大眼睛是特点也是弱点，注意眼部清洁、夏天一定要防中暑，不能在炎热环境待太久～", tags: ["京巴"] },
+  { text: "西施那一身华丽长毛底下皮肤容易闷出问题，洗澡一定吹到干透，平时多帮我梳理透气～", tags: ["西施"] },
+  { text: "马尔济斯也是几乎不掉毛的品种，对过敏体质的主人很友好！但泪痕问题要重视，每天擦眼周保持干燥～", tags: ["马尔济斯"] },
+  { text: "迷你杜宾虽然是'迷你'但胆子一点不小，精力也旺盛！每天给我足够的运动和脑力挑战，不然我会自己找事做～", tags: ["迷你杜宾"] },
+  { text: "柴犬是出了名的'戏精'，有时候一点小伤小痛会叫得惊天动地，但韧性和忍痛力其实很强。主人要多观察我的真实状态～", tags: ["柴犬"] },
+  { text: "法斗不能游泳！我们的身体结构和短鼻子让我们天生是旱鸭子。千万别让我接近深水，连宠物泳池也要穿救生衣～", tags: ["法斗"] },
+  { text: "英斗打呼噜是正常的，但如果突然变响或喘得更厉害，可能是软腭过长或呼吸道问题加重了，要去看医生～", tags: ["英斗"] },
+  { text: "中华田园犬基因多样性高、抵抗力强，是真正'好养'的狗狗！但也不要因此忽视定期疫苗和驱虫哦～", tags: ["中华田园犬"] },
+  { text: "银狐犬那一身雪白双层被毛虽然美，但换毛季掉毛量非常惊人！每天用排梳把底层绒毛梳掉，能减少家里下'雪'～", tags: ["银狐"] },
+  { text: "比格犬的鼻子有超过2亿个嗅觉受体（人类才500万个），出门闻个不停是天性。给我充足的嗅闻时间是对我最好的精神满足～", tags: ["比格"] },
+  { text: "德牧的智商在犬类排名第三，同时也是工作犬的灵魂。每天给我任务和挑战，不只是遛弯，智力游戏同样重要！", tags: ["德牧"] },
+  { text: "萨摩耶的标志微笑很治愈，但夏天一定要防中暑！双层被毛虽然保暖但也隔热，不要剃光，合理梳毛才正确～", tags: ["萨摩耶"] },
+  { text: "边牧是犬界智商第一，但也最容易因为无聊而产生行为问题。每天至少1小时高强度运动+脑力训练，敏捷球、飞盘是我们的最爱～", tags: ["边牧"] },
+  { text: "哈士奇不是'笨'，是太有主见了！训练需要耐心和创意，美食诱惑最管用。还有，出门一定要牵绳，我们的逃跑能力是传奇级别的～", tags: ["哈士奇"] },
+  { text: "阿拉斯加是雪橇三傻中最壮的一个，夏天怕热怕得不行！室内保持凉爽，室外活动安排在清晨和傍晚，随时备好充足的饮水～", tags: ["阿拉斯加"] },
+  { text: "秋田犬对主人极度忠诚，但可能对同性别的陌生狗狗不友好。从小充分社会化训练很重要，外出时保持适当的社交距离～", tags: ["秋田"] },
+  { text: "松狮的紫黑色舌头是品种特征不是生病了哦！但我们怕热、皮肤皱褶多，夏天要在阴凉处，定期清理皱褶防止皮肤炎～", tags: ["松狮"] },
+  { text: "罗威纳外表威严但内心温柔，对家人极其忠诚。作为大型工作犬，髋关节保养从小就要重视，控制体重+关节保健品双管齐下～", tags: ["罗威纳"] },
+  { text: "杜宾是犬界超模，身材修长又优雅。但心脏健康是大问题，每年心脏超声筛查不能省，早期发现DCM才能及时干预～", tags: ["杜宾"] },
+  { text: "大白熊体型巨大但性格温和得像大白一样。大型犬关节和胃扭转是两大风险，少食多餐、避免饭后剧烈运动能防胃扭转～", tags: ["大白熊"] },
 
   // ===== 行为与训练 =====
   { text: "我害怕打雷和鞭炮声的时候，请让我躲到我觉得安全的地方，不要强行拉我出来，安静陪着我就好～", tags: ["behavior"] },
@@ -6542,8 +7364,40 @@ function captureVetCard() {
 
 // ---- 品种图标映射 ----
 const BREED_ICONS = {
-  '金毛': '🦮', '拉布拉多': '🐕‍🦺', '柯基': '🐕',
-  '贵宾': '🐩', '豆柴': '🐕', '混血': '🐶', '其他': '🐶',
+  '泰迪': '🐩',
+  '比熊': '🐶',
+  '博美': '🐶',
+  '吉娃娃': '🐶',
+  '约克夏': '🐶',
+  '迷你雪纳瑞': '🐶',
+  '巴哥': '🐶',
+  '京巴': '🐶',
+  '西施': '🐶',
+  '马尔济斯': '🐶',
+  '迷你杜宾': '🐶',
+  '柴犬': '🐕',
+  '豆柴': '🐕',
+  '柯基': '🐕',
+  '法斗': '🐶',
+  '英斗': '🐶',
+  '贵宾': '🐩',
+  '中华田园犬': '🐕',
+  '银狐': '🐶',
+  '比格': '🐕',
+  '金毛': '🦮',
+  '拉布拉多': '🐕‍🦺',
+  '德牧': '🐕',
+  '萨摩耶': '🐶',
+  '边牧': '🐕',
+  '哈士奇': '🐕',
+  '阿拉斯加': '🐕',
+  '秋田': '🐕',
+  '松狮': '🐶',
+  '罗威纳': '🐕',
+  '杜宾': '🐕',
+  '大白熊': '🐶',
+  '混血': '🐶',
+  '其他': '🐶'
 };
 function getBreedIcon(breed) { return BREED_ICONS[breed] || '🐶'; }
 
@@ -6562,6 +7416,13 @@ function updateTodayDashboard(dog, age) {
       '<span class="td-reminder" id="tdReminder"></span>';
   }
   if (pawEl && dog) { pawEl.style.display = ''; if (pawCount) pawCount.textContent = dog.paw_points || 0; }
+  // ---- 今日新照片标识 ----
+  var newPhotoBadge = $('todayPhotoBadge');
+  if (newPhotoBadge && dog.health_photos && dog.health_photos.length > 0) {
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var hasNewPhoto = dog.health_photos.some(function(p) { return p.event_date && p.event_date.slice(0, 10) === todayStr; });
+    newPhotoBadge.style.display = hasNewPhoto ? 'inline-block' : 'none';
+  }
   loadStatusBarStreak();
   loadStatusBarRecent();
   loadDailyCheckStatus();
@@ -6577,6 +7438,19 @@ async function loadStatusBarRecent() {
       const typeLabels = {'疫苗':'💉 疫苗','驱虫':'💊 驱虫','发情':'💕 发情','异常行为':'⚠️ 异常','洗澡澡':'🛁 洗澡澡','每日检查':'🩺 每日检查'};
       const label = typeLabels[latest.type] || latest.type;
       el.textContent = '最近记录：' + label + ' · ' + latest.date;
+
+      // ---- 异常行为频率告警（30天内 ≥ 3 次）----
+      const nowTs = Date.now();
+      const dayMs = 86400000;
+      const abnormalCount = events.filter(function(ev) {
+        return ev.type === '异常行为' && new Date(ev.date).getTime() >= nowTs - 30 * dayMs;
+      }).length;
+      const reminder = $('tdReminder');
+      if (reminder && abnormalCount >= 3) {
+        reminder.innerHTML = '<span class="abnormal-alert" style="display:inline-block;margin-top:4px;padding:4px 10px;">⚠️ 最近 30 天已有 <b>' + abnormalCount + '</b> 次异常，建议尽快咨询兽医</span>';
+      } else if (reminder) {
+        reminder.innerHTML = '';
+      }
     } else {
       el.textContent = '还没有健康记录，去记录第一件事吧～';
     }
@@ -6602,6 +7476,17 @@ async function loadStatusBarStreak() {
       el.innerHTML = '📅 签到';
       el.onclick = doCheckIn;
       el.title = '点击签到，累积连续天数解锁勋章';
+      // ---- 断签关怀：超过 3 天未签到 ----
+      var pending = $('todayPending');
+      if (pending && status.last_check_date) {
+        var lastDate = new Date(status.last_check_date);
+        var daysSince = Math.floor((Date.now() - lastDate.getTime()) / 86400000);
+        if (daysSince >= 3) {
+          pending.innerHTML = '<div style="font-size:0.82em;color:#E65100;margin-top:6px;text-align:center;">🐾 主人有 <b>' + daysSince + '</b> 天没来看我啦，今天签个到吧～</div>';
+        } else {
+          pending.innerHTML = '';
+        }
+      }
     }
   } catch (e) {}
 }
@@ -6615,12 +7500,33 @@ const _dailyCheckPrompts = [
   { icon: '✨', title: '毛发皮肤检查', desc: '逆着毛发方向轻轻拨开<span class="pet-name-inline">狗狗</span>的毛，检查底层皮肤有没有皮屑、红点、寄生虫或异常脱毛。' },
   { icon: '👃', title: '鼻子观察', desc: '观察<span class="pet-name-inline">狗狗</span>的鼻子是否湿润（不是越湿越好哦），有没有异常分泌物或颜色变化。' },
   { icon: '💩', title: '排便观察', desc: '今天遛<span class="pet-name-inline">狗狗</span>时留意一下便便的形状、颜色和气味，是否成型、有无异物或寄生虫。' },
+  { icon: '⚖️', title: '体态触摸', desc: '摸一摸<span class="pet-name-inline">狗狗</span>的肋骨——能摸到但看不到最理想。体态评分比体重数字更科学，去「体重管理」评估一下吧～' },
+  { icon: '🍖', title: '腰线观察', desc: '从上方俯视<span class="pet-name-inline">狗狗</span>——腰部应该有可见的收窄曲线。如果腰线消失，可能是时候调整饮食了。' },
 ];
 
 function getDailyCheckPrompt() {
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
+
+  // 优先：BCS 到期需重新评估 → 成为今日检查项
+  if (bcsNeedsRenewal()) {
+    var bcs = sessionStorage.getItem('bcsAssessment');
+    if (!bcs) {
+      return { icon: '🤚', title: '体态评估', desc: '还没评估过<span class="pet-name-inline">狗狗</span>的体况呢～去「体重管理」摸一下肋骨，比体重数字更科学哦！<br><a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">👉 去评估体态</a>' };
+    }
+    var labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
+    return { icon: '🤚', title: '更新体态评估', desc: '上次评估结果：<b>' + labels[bcs] + '</b>（已过评估间隔）。再去摸一下<span class="pet-name-inline">狗狗</span>的肋骨，确认体态是否有变化。<br><a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">👉 去重新评估</a>' };
+  }
+
+  // 次优先：BCS 非理想时，每 3 天一次体态关注提醒
+  var bcs2 = sessionStorage.getItem('bcsAssessment');
+  if ((bcs2 === 'heavy' || bcs2 === 'thin') && dayOfYear % 3 === 0) {
+    return bcs2 === 'heavy'
+      ? { icon: '⚖️', title: '体态关注', desc: '当前体态评估为<b>偏胖</b>。今天带<span class="pet-name-inline">狗狗</span>多走 5 分钟，少吃几颗零食——小改变有大效果！' }
+      : { icon: '⚖️', title: '体态关注', desc: '当前体态评估为<b>偏瘦</b>。试试在<span class="pet-name-inline">狗狗</span>的饭里加一小勺鸡肉碎，营养密度更高～' };
+  }
+
   return _dailyCheckPrompts[dayOfYear % _dailyCheckPrompts.length];
 }
 
@@ -6839,6 +7745,9 @@ async function loadProfile() {
     loadCompactGrowth();
     showEasterHint();
     syncQuizEntryVisibility();
+
+    // ---- 到家周年报告 ----
+    checkHomeAnniversary(dog);
   } catch (e) {
     // 未建档状态
     if (hpInner) hpInner.style.display = 'none';
@@ -6856,87 +7765,142 @@ function loadHealthSnapshot(dog) {
   if (!snapshot) return;
 
   const ageMonths = calcAgeMonths(dog.birthday);
-  const insights = [];
+  const hasWeight = dog.weight && dog.weight.trim();
+  const weightVal = hasWeight ? parseFloat(dog.weight.trim().replace(/[^0-9.]/g, '')) : NaN;
+  const range = (!isNaN(weightVal) && dog.breed) ? getBreedWeightRange(dog.breed) : null;
 
-  // 体重状态
-  if (dog.weight && dog.weight.trim()) {
-    const w = parseFloat(dog.weight.trim().replace(/[^0-9.]/g, ''));
-    if (!isNaN(w) && dog.breed) {
-      const range = getBreedWeightRange(dog.breed);
-      if (range && w < range[0]) {
-        insights.push({ icon: '⚖️', text: '体重偏轻（' + dog.weight + '），' + dog.breed + '标准体重约 ' + range[0] + '-' + range[1] + 'kg，建议增加营养摄入。' });
-      } else if (range && w > range[1]) {
-        insights.push({ icon: '⚖️', text: '体重偏重（' + dog.weight + '），' + dog.breed + '标准体重约 ' + range[0] + '-' + range[1] + 'kg，建议控制饮食和增加运动。' });
+  // === 标签行 ===
+  let tagsHtml = '<div class="hp-tags">';
+
+  // 体重标签
+  if (hasWeight && !isNaN(weightVal) && range) {
+    if (weightVal < range[0]) {
+      tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">⛖ ' + dog.weight + ' 偏轻<span class="hp-tip-bubble">该品种标准体重 ' + range[0] + '-' + range[1] + 'kg，建议加强营养</span><span class="hp-tip-arrow"></span></span>';
+    } else if (weightVal > range[1]) {
+      tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">⛖ ' + dog.weight + ' 偏重<span class="hp-tip-bubble">该品种标准体重 ' + range[0] + '-' + range[1] + 'kg，建议控制饮食</span><span class="hp-tip-arrow"></span></span>';
+    } else {
+      // BCS 交叉验证：体重正常但体况评估为偏瘦/偏重时发出混合信号
+      var bcsState = sessionStorage.getItem('bcsAssessment');
+      if (bcsState === 'thin') {
+        tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">⛖ ' + dog.weight + ' 正常<span class="hp-tip-bubble">体重在标准范围，但体况评分偏瘦——肌肉可能不足，建议加强蛋白质摄入</span><span class="hp-tip-arrow"></span></span>';
+      } else if (bcsState === 'heavy') {
+        tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">⛖ ' + dog.weight + ' 正常<span class="hp-tip-bubble">体重在标准范围，但体况评分偏重——体脂可能偏高，建议增加运动和控制零食</span><span class="hp-tip-arrow"></span></span>';
       } else {
-        insights.push({ icon: '✅', text: '体重 ' + dog.weight + '，在健康范围内～' });
+        tagsHtml += '<span class="hp-tag hp-tag-good">⛖ ' + dog.weight + ' 正常</span>';
       }
-    } else {
-      insights.push({ icon: '⚖️', text: '当前体重：' + dog.weight });
     }
+  } else if (hasWeight) {
+    tagsHtml += '<span class="hp-tag hp-tag-good hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">⛖ ' + dog.weight + '<span class="hp-tip-bubble">填写品种后可对照标准体重范围</span><span class="hp-tip-arrow"></span></span>';
   } else {
-    insights.push({ icon: '⚖️', text: '还没记录体重，填写后可生成饮食建议和成长曲线。', action: '去记录', target: 'weight' });
+    tagsHtml += '<span class="hp-tag hp-tag-missing" onclick="openEditModal()">⛖ 未记录</span>';
   }
 
-  // 过敏源
+  // 绝育标签
+  if (dog.neutered === '是') {
+    tagsHtml += '<span class="hp-tag hp-tag-good">✂ 已绝育</span>';
+  } else if (dog.neutered === '否' && ageMonths < 6) {
+    tagsHtml += '<span class="hp-tag hp-tag-good hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">✂ 未到适龄<span class="hp-tip-bubble">一般 6 月龄后可考虑绝育，届时我会提醒你</span><span class="hp-tip-arrow"></span></span>';
+  } else if (dog.neutered === '否' && ageMonths >= 6 && ageMonths <= 18) {
+    tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">✂ 建议绝育<span class="hp-tip-bubble">绝育可降低乳腺肿瘤、子宫感染（母）或睾丸癌（公）风险</span><span class="hp-tip-arrow"></span></span>';
+  } else if (dog.neutered === '否') {
+    tagsHtml += '<span class="hp-tag hp-tag-warn hp-tip-trigger" onclick="event.stopPropagation();this.classList.toggle(' + "'tip-show'" + ')">✂ 仍可绝育<span class="hp-tip-bubble">虽已过最佳窗口期，绝育仍有益于长期健康，建议咨询兽医</span><span class="hp-tip-arrow"></span></span>';
+  } else {
+    tagsHtml += '<span class="hp-tag hp-tag-missing" onclick="openEditModal()">✂ 绝育</span>';
+  }
+
+  // 过敏源标签
   if (dog.allergies && dog.allergies.trim()) {
-    insights.push({ icon: '⚠️', text: '过敏源：' + dog.allergies + ' — 注意避开相关食物和用品。' });
+    tagsHtml += '<span class="hp-tag hp-tag-warn">⚠ ' + escHtml(dog.allergies) + '</span>';
+  } else {
+    tagsHtml += '<span class="hp-tag hp-tag-missing" onclick="openEditModal()">📋 过敏源</span>';
   }
 
-  // 已知疾病
+  // 病史标签
   if (dog.diseases && dog.diseases.trim()) {
-    insights.push({ icon: '🏥', text: '已知疾病：' + dog.diseases + ' — 日常照护中请持续关注。' });
+    tagsHtml += '<span class="hp-tag hp-tag-info">🏥 ' + escHtml(dog.diseases.substring(0, 12)) + (dog.diseases.length > 12 ? '...' : '') + '</span>';
+  } else {
+    tagsHtml += '<span class="hp-tag hp-tag-missing" onclick="openEditModal()">🏥 健康</span>';
   }
 
-  // 绝育状态
-  if (dog.neutered === '已绝育') {
-    insights.push({ icon: '✅', text: '已完成绝育。' });
-  } else if (dog.neutered === '未绝育' && ageMonths >= 6 && ageMonths <= 18) {
-    insights.push({ icon: '💡', text: '未绝育，' + ageMonths + '月龄正处于绝育适龄期，可咨询兽医。' });
-  } else if (dog.neutered === '未绝育' && ageMonths < 6) {
-    insights.push({ icon: '🐶', text: '幼犬阶段（' + ageMonths + '月龄），暂无需考虑绝育。' });
+  tagsHtml += '</div>';
+
+  // === 行动引导行 ===
+  const missingFields = [];
+  if (!dog.allergies || !dog.allergies.trim()) missingFields.push('过敏源');
+  if (!dog.neutered || dog.neutered === '未知') missingFields.push('绝育状态');
+  if (!dog.diseases || !dog.diseases.trim()) missingFields.push('健康状况');
+
+  let actionHtml = '';
+  if (missingFields.length >= 1) {
+    actionHtml = '<div class="hp-action-row" onclick="openEditModal()">📋 补全' + missingFields.join('、') + '，让建议更精准 →</div>';
   }
 
-  // 温和引导：对缺失的关键信息给出完善提示
-  if (!dog.allergies || !dog.allergies.trim()) {
-    insights.push({ icon: '📋', text: '还没记录过敏源，补充后可避免推荐含过敏成分的食材。', action: '去填写', target: '#edit' });
-  }
-  if (!dog.neutered || dog.neutered === '未知') {
-    insights.push({ icon: '💡', text: '补充绝育状态可让营养计算更精准。', action: '去填写', target: '#edit' });
-  }
-  if (!dog.diseases || !dog.diseases.trim()) {
-    insights.push({ icon: '📋', text: '记录已知健康状况，饮食和保健品建议会更安全。', action: '去填写', target: '#edit' });
-  }
+  // === 详情区 ===
+  let detailHtml = '';
+  let hasDetail = false;
 
-  // 渲染快照
-  let html = '';
-  insights.forEach(item => {
-    if (item.action) {
-      const clickAction = item.target === '#edit' ? 'openEditModal()' : ("navigateTo('" + item.target + "')");
-      html += '<div class="hp-insight"><span class="hp-insight-icon">' + item.icon + '</span><span class="hp-insight-text">' + escHtml(item.text) + ' <a class="hp-insight-action" onclick="' + clickAction + '">' + item.action + ' →</a></span></div>';
+  if (hasWeight && !isNaN(weightVal) && range) {
+    hasDetail = true;
+    detailHtml += '<div class="hp-detail-item">📐 <b>' + escHtml(dog.breed) + '</b> 标准体重 ' + range[0] + '-' + range[1] + 'kg，当前 ' + dog.weight + '，';
+    if (weightVal < range[0]) {
+      detailHtml += '偏轻，建议增加营养摄入</div>';
+    } else if (weightVal > range[1]) {
+      detailHtml += '偏重，建议控制饮食和增加运动</div>';
     } else {
-      html += '<div class="hp-insight"><span class="hp-insight-icon">' + item.icon + '</span><span class="hp-insight-text">' + escHtml(item.text) + '</span></div>';
+      detailHtml += '在理想范围内</div>';
     }
-  });
-
-  // 如果档案基础信息缺失较多，在底部添加温和的完善引导
-  const missingCritical = [];
-  if (!dog.breed || !dog.breed.trim()) missingCritical.push('品种');
-  if (!dog.birthday) missingCritical.push('生日');
-  if (missingCritical.length > 0) {
-    html += '<div class="hp-insight hp-insight-muted"><span class="hp-insight-icon">📋</span><span class="hp-insight-text">建议补充' + missingCritical.join('、') + '信息，以获取更精准的健康建议。<a class="hp-insight-action" onclick="openEditModal()">完善档案 →</a></span></div>';
   }
 
-  snapshot.innerHTML = html;
+  if (ageMonths > 0) {
+    hasDetail = true;
+    let stage, advice;
+    if (ageMonths < 12) { stage = '幼犬'; advice = '建议少食多餐，关注疫苗接种和驱虫'; }
+    else if (ageMonths < 84) { stage = '成年犬'; advice = '建议每年体检 1 次，关注牙齿清洁和体重管理'; }
+    else { stage = '老年犬'; advice = '建议每半年体检 1 次，关注关节、心脏和肾脏健康'; }
+    const ageStr = ageMonths < 12 ? ageMonths + '个月' : Math.floor(ageMonths / 12) + '岁' + (ageMonths % 12 > 0 ? (ageMonths % 12) + '个月' : '');
+    detailHtml += '<div class="hp-detail-item">🐾 <b>' + stage + '</b>（' + ageStr + '）— ' + advice + '</div>';
+  }
+
+  if (dog.neutered === '否' && ageMonths >= 6) {
+    hasDetail = true;
+    if (ageMonths <= 18) {
+      detailHtml += '<div class="hp-detail-item">💡 绝育可降低乳腺肿瘤和子宫感染（母）或睾丸癌（公）风险，建议咨询兽医确定最佳时间。</div>';
+    } else {
+      detailHtml += '<div class="hp-detail-item">💡 虽已过最佳窗口期，绝育仍有益于长期健康，建议咨询兽医评估风险。</div>';
+    }
+  }
+
+  let toggleHtml = '';
+  if (hasDetail) {
+    toggleHtml = '<div class="hp-detail-toggle" onclick="toggleHpDetail()">▸ 查看更多</div>';
+    toggleHtml += '<div class="hp-detail" id="hpDetail" style="display:none;">' + detailHtml + '</div>';
+  }
+
+  snapshot.innerHTML = tagsHtml + actionHtml + toggleHtml;
+}
+
+function toggleHpDetail() {
+  const detail = $('hpDetail');
+  if (!detail) return;
+  const isHidden = detail.style.display === 'none';
+  detail.style.display = isHidden ? 'block' : 'none';
+  const toggles = document.querySelectorAll('.hp-detail-toggle');
+  toggles.forEach(t => {
+    t.textContent = isHidden ? '▾ 收起' : '▸ 查看更多';
+  });
 }
 
 // 品种标准体重参考（kg）
 function getBreedWeightRange(breed) {
   const map = {
-    '金毛': [25, 34], '拉布拉多': [25, 36], '柯基': [10, 14], '贵宾': [3, 8],
-    '泰迪': [2, 5], '豆柴': [6, 10], '柴犬': [8, 12], '哈士奇': [20, 27],
-    '萨摩耶': [20, 30], '边牧': [14, 22], '德牧': [22, 40], '法斗': [8, 14],
-    '英斗': [18, 25], '比熊': [3, 6], '博美': [1.5, 3.5], '雪纳瑞': [5, 9],
-    '吉娃娃': [1, 3], '约克夏': [1.5, 3], '巴哥': [6, 9], '中华田园犬': [12, 25],
+    '泰迪': [2, 5], '比熊': [5, 8.5], '博美': [1.5, 3.5], '吉娃娃': [1, 3],
+    '约克夏': [1.5, 3], '迷你雪纳瑞': [5, 9], '巴哥': [6, 9], '京巴': [3, 6],
+    '西施': [4, 8], '马尔济斯': [2, 3.5], '迷你杜宾': [4, 6], '柴犬': [8, 12],
+    '豆柴': [6, 10], '柯基': [10, 14], '法斗': [8, 13], '英斗': [18, 25],
+    '贵宾': [2, 32], '中华田园犬': [12, 25], '银狐': [5, 10], '比格': [9, 16],
+    '金毛': [25, 34], '拉布拉多': [25, 36], '德牧': [22, 40], '萨摩耶': [16, 30],
+    '边牧': [14, 22], '哈士奇': [16, 27], '阿拉斯加': [34, 45], '秋田': [32, 55],
+    '松狮': [20, 32], '罗威纳': [35, 60], '杜宾': [27, 45], '大白熊': [36, 54]
   };
   const key = Object.keys(map).find(k => breed.includes(k));
   return key ? map[key] : null;
@@ -7156,6 +8120,17 @@ function openEditModal() {
     showToast('主人，请先建立档案哦～', true);
     return;
   }
+  const d = _cachedDog;
+  $('eName').value = d.name || '';
+  $('eBreed').value = d.breed || '';
+  syncCustomSelect('eBreed');
+  $('eBirthday').value = d.birthday || '';
+  $('eWeight').value = d.weight || '';
+  $('eGender').value = d.gender || '';
+  $('eNeutered').value = d.neutered === '是' ? '是' : d.neutered === '否' ? '否' : '未知';
+  $('eAllergies').value = d.allergies || '';
+  $('eDiseases').value = d.diseases || '';
+  $('eHomeDate').value = d.home_date || '';
   $('editModalOverlay').style.display = 'flex';
 }
 
@@ -7383,6 +8358,7 @@ async function loadDietCard() {
           ${data.allergy_note ? `<div style="text-align:center;font-size:0.78em;color:#C0392B;margin-top:6px;">${escHtml(data.allergy_note)}</div>` : ''}
           ${data.hypoglycemia_note ? `<div style="text-align:center;font-size:0.78em;color:#E67E22;margin-top:6px;font-weight:600;">${escHtml(data.hypoglycemia_note)}</div>` : ''}
           ${data.disease_note ? `<div style="text-align:center;font-size:0.78em;color:#8B4513;margin-top:6px;">${escHtml(data.disease_note)}</div>` : ''}
+          <div id="dietBcsNote"></div>
         </div>
 
         <!-- 右侧：辅助信息 -->
@@ -7403,6 +8379,7 @@ async function loadDietCard() {
 
           <div class="side-section">
             <div class="side-label">💡 小贴士</div>
+            ${data.breed_tip ? `<div class="side-text" style="color:var(--orange);margin-bottom:4px;">🐕 ${escHtml(data.breed_tip)}</div>` : ''}
             <div class="side-text">${escHtml(data.tip)}</div>
           </div>
 
@@ -7429,6 +8406,18 @@ async function loadDietCard() {
       <div style="margin-top:12px;font-size:0.75em;color:var(--muted);text-align:center;line-height:1.5;padding:6px 8px;background:#FFFBF5;border-radius:6px;border:1px solid #FFE0C0;">
         📋 此饮食建议基于您填写的档案信息自动生成，仅供参考，不能替代兽医的专业诊断。如有健康问题请立即联系兽医。
       </div>`;
+    // 渲染 BCS 体态提示
+    var bcsNote = document.getElementById('dietBcsNote');
+    if (bcsNote) {
+      var bcs = sessionStorage.getItem('bcsAssessment');
+      if (bcs === 'heavy') {
+        bcsNote.innerHTML = '<div style="text-align:center;font-size:0.8em;color:#E65100;margin-top:6px;padding:6px 10px;background:#FFF3E0;border-radius:8px;">⚖️ 当前体态评估为<b>偏胖</b>，建议适当控制食量，增加运动量。可调整到「更新体重」重新计算。</div>';
+      } else if (bcs === 'thin') {
+        bcsNote.innerHTML = '<div style="text-align:center;font-size:0.8em;color:#856404;margin-top:6px;padding:6px 10px;background:#FFF8E1;border-radius:8px;">⚖️ 当前体态评估为<b>偏瘦</b>，建议适当增加优质蛋白摄入。可调整到「更新体重」重新计算。</div>';
+      } else if (bcs === 'ideal') {
+        bcsNote.innerHTML = '<div style="text-align:center;font-size:0.78em;color:#2E7D32;margin-top:6px;">✅ 当前体态理想，继续保持当前饮食节奏～</div>';
+      }
+    }
   } catch (e) {
     card.style.display = 'none';
   }
@@ -7474,7 +8463,9 @@ async function loadSupplements() {
           <button class="btn btn-primary btn-sm" onclick="navigateTo('record')">📝 记录异常行为</button>
           <button class="btn btn-secondary btn-sm" onclick="scrollToWeight()">⚖️ 更新体重</button>
         </div>
+        <div id="suppBcsNote" style="margin-top:8px;"></div>
       </div>`;
+      renderSuppBcsNote();
       return;
     }
     card.style.display = '';
@@ -7499,9 +8490,22 @@ async function loadSupplements() {
       </div>`).join('') + `
       <div style="margin-top:12px;font-size:0.75em;color:var(--muted);text-align:center;line-height:1.5;padding:6px 8px;background:#FFFBF5;border-radius:6px;border:1px solid #FFE0C0;">
         💊 保健品提醒基于一般营养学知识生成，具体服用方案请咨询兽医确认。
-      </div>`;
+      </div>
+      <div id="suppBcsNote" style="margin-top:8px;"></div>`;
+    renderSuppBcsNote();
   } catch (e) {
     card.style.display = 'none';
+  }
+}
+
+function renderSuppBcsNote() {
+  var el = document.getElementById('suppBcsNote');
+  if (!el) return;
+  var bcs = sessionStorage.getItem('bcsAssessment');
+  if (bcs === 'heavy') {
+    el.innerHTML = '<div style="font-size:0.82em;color:#E65100;text-align:center;padding:8px;background:#FFF3E0;border-radius:8px;">⚖️ 当前体态<b>偏胖</b>，关节压力增大 — 建议关注<b>关节保护</b>类保健品，同时控制饮食、增加运动。</div>';
+  } else if (bcs === 'thin') {
+    el.innerHTML = '<div style="font-size:0.82em;color:#856404;text-align:center;padding:8px;background:#FFF8E1;border-radius:8px;">⚖️ 当前体态<b>偏瘦</b>，可能存在营养吸收问题 — 建议关注<b>益生菌/综合维生素</b>类保健品。</div>';
   }
 }
 // ---- 体重日志 ----
@@ -7511,6 +8515,39 @@ async function loadWeightPage() {
   $('wlDate').value = new Date().toISOString().slice(0, 10);
   loadWeightLogs();
   updateWeightFrequencyHint();
+  loadBCSState();
+}
+
+// ---- 体重输入清洗 ----
+function cleanWeightOnBlur(input) {
+  var v = (input.value || '').trim();
+  if (!v) return;
+  // 去掉非数字和小数点
+  v = v.replace(/[^0-9.]/g, '');
+  // 防止多个小数点
+  var parts = v.split('.');
+  if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+  input.value = v;
+}
+
+function formatWeightForSubmit(v) {
+  v = (v || '').trim();
+  if (!v) return '';
+  // 清洗
+  v = v.replace(/[^0-9.]/g, '');
+  var parts = v.split('.');
+  if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+  if (!v) return '';
+  // 范围校验
+  var num = parseFloat(v);
+  if (isNaN(num)) return '';
+  if (num < 0.3 || num > 120) return '';
+  // 添加单位
+  return v + 'kg';
+}
+
+function stripWeightUnit(v) {
+  return (v || '').replace(/kg/gi, '').trim();
 }
 
 function updateWeightFrequencyHint() {
@@ -7527,6 +8564,69 @@ function updateWeightFrequencyHint() {
   }
 }
 
+function setWeightChartRange(days) {
+  sessionStorage.setItem('weightChartRange', days);
+  loadWeightLogs();
+}
+
+function selectBCS(state) {
+  document.querySelectorAll('.bcs-state-card').forEach(c => c.classList.remove('selected'));
+  const card = document.querySelector('.bcs-state-card[data-bcs="' + state + '"]');
+  if (card) card.classList.add('selected');
+  sessionStorage.setItem('bcsAssessment', state);
+  sessionStorage.setItem('bcsAssessmentDate', new Date().toISOString().slice(0, 10));
+  const labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
+  const badgeClasses = { thin: 'thin', ideal: 'ideal', heavy: 'heavy' };
+  const badge = document.getElementById('bcsResultBadge');
+  if (badge) {
+    badge.innerHTML = '<span class="bcs-result-badge ' + badgeClasses[state] + '">' + labels[state] + '</span>';
+  }
+  // 持久化到后端
+  api('/api/bcs', { method: 'POST', body: JSON.stringify({ bcs_state: state, date: new Date().toISOString().slice(0, 10) }) }).catch(function(){});
+}
+
+function loadBCSState() {
+  const saved = sessionStorage.getItem('bcsAssessment');
+  if (saved) {
+    const card = document.querySelector('.bcs-state-card[data-bcs="' + saved + '"]');
+    if (card) card.classList.add('selected');
+    const labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
+    const badgeClasses = { thin: 'thin', ideal: 'ideal', heavy: 'heavy' };
+    const badge = document.getElementById('bcsResultBadge');
+    if (badge) {
+      badge.innerHTML = '<span class="bcs-result-badge ' + badgeClasses[saved] + '">' + labels[saved] + '</span>';
+    }
+    // ---- 体重记录密度提示 ----
+    var hint = document.getElementById('bcsWeightHint');
+    if (hint && _cachedDog) {
+      var ageMonths = calcAgeMonths(_cachedDog.birthday);
+      var freqText = ageMonths < 12 ? '建议每周记录 1-2 次体重' : (ageMonths < 84 ? '建议每月记录 1 次体重' : '建议每 2-4 周记录 1 次');
+      hint.textContent = '| ' + freqText;
+    }
+  }
+}
+
+// ---- BCS 评估间隔（供每日检查轮换使用）----
+function getBcsIntervalDays() {
+  var ageMonths = 36;
+  if (_cachedDog && _cachedDog.birthday) {
+    ageMonths = calcAgeMonths(_cachedDog.birthday);
+  }
+  var bcs = sessionStorage.getItem('bcsAssessment');
+  if (bcs === 'thin' || bcs === 'heavy') return 14;
+  if (ageMonths < 12) return 14;
+  if (ageMonths < 84) return 28;
+  return 21;
+}
+
+function bcsNeedsRenewal() {
+  var dateStr = sessionStorage.getItem('bcsAssessmentDate');
+  if (!dateStr) return true;
+  var lastDate = new Date(dateStr);
+  var daysSince = Math.floor((Date.now() - lastDate.getTime()) / 86400000);
+  return daysSince >= getBcsIntervalDays();
+}
+
 async function loadWeightLogs() {
   const list = $('weightLogList');
   const chartContainer = $('weightChartContainer');
@@ -7539,23 +8639,176 @@ async function loadWeightLogs() {
       if (list) list.innerHTML = '';
       return;
     }
-    // 趋势图（简易柱状图）
+    // 趋势图（SVG 折线图 + 理想体重区间带 + 时间范围切换）
     if (chartContainer) {
       const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
-      const recent = sorted.slice(-12); // 最近12条
-      const weights = recent.map(l => parseFloat(l.weight.replace(/[^0-9.]/g, '')));
-      const maxW = Math.max(...weights);
-      const minW = Math.min(...weights);
-      const range = maxW - minW || 1;
-      let chartHTML = '<div class="weight-chart">';
-      recent.forEach((l, i) => {
-        const w = parseFloat(l.weight.replace(/[^0-9.]/g, ''));
-        const h = Math.max(15, ((w - minW) / range) * 100);
-        const label = l.date.slice(5); // MM-DD
-        chartHTML += '<div class="weight-bar-col"><div class="weight-bar-val">' + l.weight + '</div><div class="weight-bar" style="height:' + h + 'px;"></div><div class="weight-bar-label">' + label + '</div></div>';
+
+      // 预计算各时间范围的数据条数
+      const nowTs = Date.now();
+      const dayMs = 86400000;
+      const rangeCounts = {
+        90: sorted.filter(l => new Date(l.date).getTime() >= nowTs - 90 * dayMs).length,
+        180: sorted.filter(l => new Date(l.date).getTime() >= nowTs - 180 * dayMs).length,
+        365: sorted.filter(l => new Date(l.date).getTime() >= nowTs - 365 * dayMs).length
+      };
+
+      // 时间范围过滤（默认近6月）
+      let rangeDays = parseInt(sessionStorage.getItem('weightChartRange') || '180');
+      const cutoff = new Date(nowTs - rangeDays * dayMs);
+      const cutoffStr = cutoff.toISOString().slice(0, 10);
+      const filtered = sorted.filter(l => l.date >= cutoffStr);
+
+      // 时间范围切换按钮（含数据条数）
+      const ranges = [
+        { days: 90, label: '近3月' },
+        { days: 180, label: '近6月' },
+        { days: 365, label: '近1年' }
+      ];
+      let rangeHTML = '<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px;">';
+      const curRange = parseInt(sessionStorage.getItem('weightChartRange') || '180');
+      ranges.forEach(r => {
+        const active = curRange === r.days;
+        const cnt = rangeCounts[r.days] || 0;
+        const cntStr = '(' + cnt + ')';
+        rangeHTML += '<button class="btn btn-text btn-sm" onclick="setWeightChartRange(' + r.days + ')" style="' + (active ? 'color:var(--orange);font-weight:700;border-bottom:2px solid var(--orange);border-radius:0;' : '') + '">' + r.label + '<span style="font-size:0.78em;color:' + (active ? 'var(--orange)' : 'var(--muted)') + ';">' + cntStr + '</span></button>';
       });
-      chartHTML += '</div>';
-      chartContainer.innerHTML = chartHTML;
+      rangeHTML += '</div>';
+
+      // A+D: 数据不足时显示空状态引导
+      if (filtered.length < 2) {
+        const rangeLabel = rangeDays >= 365 ? '近1年' : (rangeDays >= 180 ? '近6月' : '近3月');
+        const earliestLog = sorted[0];
+        const earliestDate = earliestLog ? earliestLog.date : '';
+        const totalCount = sorted.length;
+        let emptyHTML = rangeHTML;
+        emptyHTML += '<div style="text-align:center;padding:16px 0;">';
+        emptyHTML += '<div style="font-size:2em;margin-bottom:6px;">📋</div>';
+        emptyHTML += '<div style="font-size:0.9em;color:#8A6A55;margin-bottom:4px;">' + rangeLabel + '范围暂无体重记录</div>';
+        emptyHTML += '<div style="font-size:0.8em;color:var(--muted);margin-bottom:6px;">主人，建议每 2-4 周记录一次体重来追踪趋势～</div>';
+        if (earliestDate) {
+          emptyHTML += '<div style="font-size:0.78em;color:var(--muted);margin-bottom:8px;">最早记录：' + earliestDate + '（共 ' + totalCount + ' 条）</div>';
+        }
+        emptyHTML += '</div>';
+        chartContainer.innerHTML = emptyHTML;
+      } else {
+        // 数据充足：正常渲染图表
+        // 自适应聚合：上限14个可见点
+        let plotData;
+        if (filtered.length > 14) {
+          const numBuckets = Math.min(12, Math.ceil(filtered.length / 2));
+          const firstDate = new Date(filtered[0].date);
+          const lastDate = new Date(filtered[filtered.length - 1].date);
+          const rangeMs = Math.max(86400000, lastDate - firstDate);
+          const bucketMs = rangeMs / numBuckets;
+          const buckets = {};
+          filtered.forEach(l => {
+            const d = new Date(l.date);
+            const bi = Math.min(numBuckets - 1, Math.floor((d - firstDate) / bucketMs));
+            if (!buckets[bi]) buckets[bi] = { dates: [], weights: [], raws: [] };
+            buckets[bi].dates.push(l.date);
+            buckets[bi].weights.push(parseFloat(l.weight.replace(/[^0-9.]/g, '')));
+            buckets[bi].raws.push(l.weight);
+          });
+          plotData = Object.entries(buckets).map(([bi, v]) => {
+            const avgW = (v.weights.reduce((a, b) => a + b, 0) / v.weights.length).toFixed(1);
+            const midDate = v.dates[Math.floor(v.dates.length / 2)];
+            return { date: midDate, label: midDate.slice(5), weight: parseFloat(avgW), rawWeight: avgW + 'kg' };
+          });
+          plotData.sort((a, b) => a.date.localeCompare(b.date));
+        } else {
+          plotData = filtered.map(l => ({
+            date: l.date,
+            label: '',
+            weight: parseFloat(l.weight.replace(/[^0-9.]/g, '')),
+            rawWeight: l.weight
+          }));
+        }
+
+        const breedRange = (_cachedDog && _cachedDog.breed) ? getBreedWeightRange(_cachedDog.breed) : null;
+        const allWeights = plotData.map(d => d.weight);
+        let yMin = Math.min(...allWeights);
+        let yMax = Math.max(...allWeights);
+        if (breedRange) {
+          yMin = Math.min(yMin, breedRange[0] * 0.85);
+          yMax = Math.max(yMax, breedRange[1] * 1.15);
+        }
+        const yPad = Math.max(0.5, (yMax - yMin) * 0.15);
+        yMin = Math.floor((yMin - yPad) * 2) / 2;
+        yMax = Math.ceil((yMax + yPad) * 2) / 2;
+        if (yMax - yMin < 2) { yMin -= 0.5; yMax += 0.5; }
+
+        const svgW = 600, svgH = 220;
+        const pad = { top: 16, right: 16, bottom: 32, left: 48 };
+        const pw = svgW - pad.left - pad.right;
+        const ph = svgH - pad.top - pad.bottom;
+        const xScale = i => pad.left + (plotData.length > 1 ? (i / (plotData.length - 1)) * pw : pw / 2);
+        const yScale = w => pad.top + ph * (1 - (w - yMin) / (yMax - yMin));
+
+        let lastYear = '';
+        const dateLabels = plotData.map((d, i) => {
+          const yr = d.date.slice(0, 4);
+          const mmdd = d.date.slice(5);
+          let lbl = d.label || mmdd;
+          if (plotData.length <= 20) {
+            if (yr !== lastYear) { lbl = yr + '-' + mmdd; lastYear = yr; }
+          }
+          return { x: xScale(i), label: lbl };
+        });
+
+        let svg = '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%;max-width:600px;display:block;margin:0 auto;">';
+        // 理想体重区间带
+        if (breedRange) {
+          const bandY1 = yScale(breedRange[1]);
+          const bandY2 = yScale(breedRange[0]);
+          svg += '<rect x="' + pad.left + '" y="' + bandY1 + '" width="' + pw + '" height="' + (bandY2 - bandY1) + '" fill="#E8F5E9" rx="3"/>';
+          svg += '<line x1="' + pad.left + '" y1="' + bandY1 + '" x2="' + (pad.left + pw) + '" y2="' + bandY1 + '" stroke="#A5D6A7" stroke-dasharray="4,3" stroke-width="1"/>';
+          svg += '<line x1="' + pad.left + '" y1="' + bandY2 + '" x2="' + (pad.left + pw) + '" y2="' + bandY2 + '" stroke="#A5D6A7" stroke-dasharray="4,3" stroke-width="1"/>';
+          svg += '<text x="' + (pad.left + pw) + '" y="' + (bandY1 - 2) + '" text-anchor="end" font-size="9" fill="#66BB6A" font-weight="600">理想 ' + breedRange[0] + '-' + breedRange[1] + 'kg</text>';
+        }
+        // Y 轴
+        const ySteps = 4;
+        const yStepVal = (yMax - yMin) / ySteps;
+        for (let s = 0; s <= ySteps; s++) {
+          const val = yMin + s * yStepVal;
+          const yy = yScale(val);
+          svg += '<line x1="' + pad.left + '" y1="' + yy + '" x2="' + (pad.left + pw) + '" y2="' + yy + '" stroke="' + (s === 0 ? '#E0D5C5' : '#F0E8DB') + '" stroke-width="' + (s === 0 ? 1 : 0.5) + '"/>';
+          svg += '<text x="' + (pad.left - 6) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="10" fill="#8A6A55">' + val.toFixed(1) + '</text>';
+        }
+        // X 轴
+        svg += '<line x1="' + pad.left + '" y1="' + (pad.top + ph) + '" x2="' + (pad.left + pw) + '" y2="' + (pad.top + ph) + '" stroke="#D4C4B0" stroke-width="1"/>';
+        const maxLabels = Math.min(plotData.length, 12);
+        const labelStep = Math.max(1, Math.floor(plotData.length / maxLabels));
+        dateLabels.forEach((dl, i) => {
+          if (i % labelStep === 0 || i === plotData.length - 1) {
+            svg += '<text x="' + dl.x + '" y="' + (pad.top + ph + 16) + '" text-anchor="' + (i === 0 ? 'start' : i === plotData.length - 1 ? 'end' : 'middle') + '" font-size="9" fill="#8A6A55">' + dl.label + '</text>';
+            svg += '<line x1="' + dl.x + '" y1="' + (pad.top + ph) + '" x2="' + dl.x + '" y2="' + (pad.top + ph + 4) + '" stroke="#D4C4B0" stroke-width="0.5"/>';
+          }
+        });
+        // 折线
+        if (plotData.length >= 2) {
+          const polyPoints = plotData.map((d, i) => xScale(i) + ',' + yScale(d.weight)).join(' ');
+          svg += '<polyline points="' + polyPoints + '" fill="none" stroke="#F4A460" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>';
+        }
+        // 数据点 + 标签
+        const showLabels = plotData.length <= 14;
+        plotData.forEach((d, i) => {
+          const cx = xScale(i);
+          const cy = yScale(d.weight);
+          svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (plotData.length <= 10 ? 4 : 3) + '" fill="#F4A460" stroke="#fff" stroke-width="2"/>';
+          if (showLabels) {
+            svg += '<text x="' + cx + '" y="' + (cy - 10) + '" text-anchor="middle" font-size="10" fill="#5D3A1A" font-weight="600">' + (d.rawWeight || d.weight + 'kg') + '</text>';
+          }
+        });
+        svg += '</svg>';
+
+        // 数据点较少提示
+        let sparseNote = '';
+        if (filtered.length <= 3) {
+          sparseNote = '<div style="text-align:center;font-size:0.78em;color:var(--muted);margin-top:4px;">⚠️ 数据点较少，趋势仅供参考</div>';
+        }
+
+        chartContainer.innerHTML = rangeHTML + svg + sparseNote;
+      }
     }
     // 统计行
     if (statsRow) {
@@ -7574,14 +8827,45 @@ async function loadWeightLogs() {
       statsRow.innerHTML = '<div class="weight-stat"><span class="weight-stat-label">最新体重</span><span class="weight-stat-value">' + lastLog.weight + '</span></div>' +
         '<div class="weight-stat"><span class="weight-stat-label">记录次数</span><span class="weight-stat-value">' + logs.length + ' 次</span></div>' +
         changeHTML;
+
+      // ---- 体重趋势 → 饮食调整提醒 ----
+      var trendAlert = $('weightTrendAlert');
+      if (trendAlert && logs.length >= 3) {
+        var sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+        var last3 = sortedLogs.slice(-3);
+        var w3 = last3.map(function(l) { return parseFloat(l.weight.replace(/[^0-9.]/g, '')); });
+        var trendUp = w3[0] < w3[1] && w3[1] < w3[2];
+        var trendDown = w3[0] > w3[1] && w3[1] > w3[2];
+        var breedRange = (_cachedDog && _cachedDog.breed) ? getBreedWeightRange(_cachedDog.breed) : null;
+        var shouldAlert = false;
+        var alertDir = '';
+        if (breedRange) {
+          if (trendUp && w3[2] > breedRange[1] * 0.9) { shouldAlert = true; alertDir = '上升'; }
+          if (trendDown && w3[2] < breedRange[0] * 1.1) { shouldAlert = true; alertDir = '下降'; }
+        }
+        if (shouldAlert) {
+          trendAlert.style.display = '';
+          trendAlert.className = 'weight-trend-alert';
+          trendAlert.innerHTML = '📊 最近 3 次体重持续<b>' + alertDir + '</b>（' + w3[0].toFixed(1) + ' → ' + w3[2].toFixed(1) + 'kg），需要<a href="javascript:navigateTo(\'diet\')" style="color:var(--orange);font-weight:700;text-decoration:underline;">重新计算每日食谱</a>吗？';
+        } else {
+          trendAlert.style.display = 'none';
+        }
+      }
     }
-    // 历史列表
+    // 历史列表（支持桌面右键删除 / 手机左滑删除）
     if (list) {
       list.innerHTML = logs.map(l => `
-        <div style="display:flex;justify-content:space-between;font-size:0.85em;padding:6px 0;border-bottom:1px dotted var(--border);">
-          <span>${l.date}</span>
-          <span style="font-weight:600;color:var(--brown);">${escHtml(l.weight)}</span>
+        <div class="weight-log-item" data-id="${l.id}">
+          <div class="weight-log-delete-bg" onclick="deleteWeightLog(${l.id})">删除</div>
+          <div class="weight-log-item-inner">
+            <span>${l.date}</span>
+            <span style="font-weight:600;color:var(--brown);">${escHtml(l.weight)}</span>
+          </div>
         </div>`).join('');
+      // 绑定触摸滑动事件
+      initWeightLogSwipe();
+      // 绑定右键菜单事件
+      initWeightLogContextMenu();
     }
   } catch (e) {
     if (chartContainer) chartContainer.innerHTML = '<div style="font-size:0.88em;color:var(--muted);">加载体重记录失败</div>';
@@ -7589,11 +8873,133 @@ async function loadWeightLogs() {
   }
 }
 
+// ---- 体重记录滑动删除（移动端）----
+let _weightLogTouchStartX = 0;
+let _weightLogTouchCurrentItem = null;
+
+function initWeightLogSwipe() {
+  document.querySelectorAll('.weight-log-item-inner').forEach(function(inner) {
+    inner.addEventListener('touchstart', function(e) {
+      _weightLogTouchStartX = e.touches[0].clientX;
+      _weightLogTouchCurrentItem = this.parentElement;
+      // 先关闭其他已滑出的项
+      document.querySelectorAll('.weight-log-item.swiped').forEach(function(el) {
+        if (el !== _weightLogTouchCurrentItem) el.classList.remove('swiped');
+      });
+    }, { passive: true });
+
+    inner.addEventListener('touchmove', function(e) {
+      if (!_weightLogTouchCurrentItem) return;
+      const dx = e.touches[0].clientX - _weightLogTouchStartX;
+      if (dx < -30) {
+        _weightLogTouchCurrentItem.classList.add('swiped');
+      } else if (dx > 30) {
+        _weightLogTouchCurrentItem.classList.remove('swiped');
+      }
+    }, { passive: true });
+
+    inner.addEventListener('touchend', function() {
+      _weightLogTouchCurrentItem = null;
+    });
+  });
+}
+
+// ---- 体重记录右键菜单（桌面端）----
+let _weightContextMenu = null;
+
+function hideWeightContextMenu() {
+  if (_weightContextMenu) {
+    _weightContextMenu.remove();
+    _weightContextMenu = null;
+  }
+}
+
+function initWeightLogContextMenu() {
+  document.querySelectorAll('.weight-log-item').forEach(function(item) {
+    item.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      hideWeightContextMenu();
+      const id = parseInt(this.dataset.id);
+      const menu = document.createElement('div');
+      menu.className = 'weight-context-menu';
+      menu.innerHTML = '<div class="weight-context-menu-item" onclick="deleteWeightLog(' + id + ');hideWeightContextMenu();">🗑️ 删除此记录</div>';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      document.body.appendChild(menu);
+      _weightContextMenu = menu;
+      // 点击其他地方关闭菜单
+      setTimeout(function() {
+        document.addEventListener('click', hideWeightContextMenu, { once: true });
+      }, 0);
+    });
+  });
+}
+
+// ---- 通用确认弹窗 ----
+let _gcPendingCallback = null;
+
+function showConfirmDialog(icon, message, sub, onConfirm, danger) {
+  document.getElementById('gcIcon').textContent = icon || '⚠️';
+  document.getElementById('gcMessage').textContent = message;
+  document.getElementById('gcSub').textContent = sub || '';
+  var okBtn = document.getElementById('gcConfirmBtn');
+  okBtn.className = 'generic-confirm-ok' + (danger ? ' danger' : '');
+  okBtn.textContent = danger ? '确认删除' : '确认';
+  _gcPendingCallback = onConfirm;
+  document.getElementById('genericConfirmOverlay').style.display = 'flex';
+}
+
+function closeConfirmDialog() {
+  _gcPendingCallback = null;
+  document.getElementById('genericConfirmOverlay').style.display = 'none';
+}
+
+function _gcFire() {
+  if (_gcPendingCallback) {
+    var cb = _gcPendingCallback;
+    _gcPendingCallback = null;
+    document.getElementById('genericConfirmOverlay').style.display = 'none';
+    cb();
+  }
+}
+
+// ---- 删除体重记录 ----
+async function deleteWeightLog(logId) {
+  hideWeightContextMenu();
+  showConfirmDialog('🗑️', '确定要删除这条体重记录吗？', '删除后不可恢复，主人要想好哦～', function() {
+    deleteWeightLogConfirmed(logId);
+  }, true);
+}
+
+async function deleteWeightLogConfirmed(logId) {
+  try {
+    const r = await api('/api/weight_log/' + logId, { method: 'DELETE' });
+    showToast(r.message || '已删除');
+    loadWeightLogs();
+    // 刷新首页档案显示
+    if (_cachedDog) {
+      try {
+        const dog = await api('/api/dog');
+        _cachedDog = dog;
+        const age = calcAge(dog.birthday);
+        updateTodayDashboard(dog, age);
+        loadHealthSnapshot(dog);
+      } catch (e) {}
+    }
+  } catch (e) {
+    showToast('删除失败：' + (e.message || '未知错误'), true);
+  }
+}
+
 $('btnAddWeight').addEventListener('click', async function() {
   const btn = this;
-  const weight = $('wlWeight').value.trim();
+  const rawWeight = $('wlWeight').value.trim();
+  const weight = formatWeightForSubmit(rawWeight);
   const dateVal = $('wlDate').value || new Date().toISOString().slice(0, 10);
-  if (!weight) { showToast('汪汪，请填写体重哦～', true); return; }
+  if (!weight) {
+    if (!rawWeight) { showToast('汪汪，请填写体重哦～', true); return; }
+    showToast('体重不太对哦，狗狗一般在 0.5-120kg 之间～', true); return;
+  }
   if (!_cachedDog) { showToast('主人，请先创建狗狗档案～', true); return; }
 
   btn.disabled = true;
@@ -7605,7 +9011,7 @@ $('btnAddWeight').addEventListener('click', async function() {
       body: JSON.stringify({ dog_id: _cachedDog.id, weight, date: dateVal }),
     });
     showToast(r.message);
-    $('wlWeight').value = '';
+    // 保留体重值方便连续记录，只重置日期到今天
     $('wlDate').value = new Date().toISOString().slice(0, 10);
     loadWeightLogs();
     loadProfile();
@@ -7900,7 +9306,7 @@ $('btnModalCreate').addEventListener('click', async function() {
   const name = $('mName').value.trim();
   const breed = $('mBreed').value;
   const birthday = $('mBirthday').value;
-  const weight = $('mWeight').value.trim();
+  const weight = formatWeightForSubmit($('mWeight').value.trim()) || $('mWeight').value.trim();
   const neutered = $('mNeutered').value;
   const allergies = $('mAllergies').value.trim();
   const gender = $('mGender').value;
@@ -7965,7 +9371,7 @@ if (_btnEditProfile) _btnEditProfile.addEventListener('click', async function() 
     // 预填所有字段
     $('eName').value = dog.name;
     $('eBreed').value = dog.breed;
-    $('eWeight').value = dog.weight || '';
+    $('eWeight').value = stripWeightUnit(dog.weight || '');
     $('eNeutered').value = dog.neutered || '未知';
     $('eAllergies').value = dog.allergies || '';
     $('eGender').value = dog.gender || '';
@@ -7994,7 +9400,7 @@ $('btnEditSave').addEventListener('click', async function() {
   const name = $('eName').value.trim();
   const breed = $('eBreed').value;
   const birthday = $('eBirthday').value;
-  const weight = $('eWeight').value.trim();
+  const weight = formatWeightForSubmit($('eWeight').value.trim()) || $('eWeight').value.trim();
   const neutered = $('eNeutered').value;
   const allergies = $('eAllergies').value.trim();
   const gender = $('eGender').value;
@@ -8809,6 +10215,50 @@ function showEasterHint() {
   $('easterHint').style.display = 'block';
 }
 
+// ---- 到家周年报告 ----
+function checkHomeAnniversary(dog) {
+  if (!dog.home_date) return;
+  var today = new Date();
+  var homeDate = new Date(dog.home_date);
+  if (isNaN(homeDate.getTime())) return;
+  // 检查是否同月同日（周年）
+  if (today.getMonth() !== homeDate.getMonth() || today.getDate() !== homeDate.getDate()) return;
+  var years = today.getFullYear() - homeDate.getFullYear();
+  if (years < 1) return;
+  // 避免同一天重复弹出
+  var shownKey = 'anniversaryShown_' + dog.home_date;
+  if (sessionStorage.getItem(shownKey) === String(years)) return;
+  sessionStorage.setItem(shownKey, String(years));
+
+  var emoji = years === 1 ? '🎂' : (years >= 5 ? '👑' : '🏠');
+  $('anniversaryEmoji').textContent = emoji;
+  $('anniversaryTitle').textContent = dog.name + ' 到家 ' + years + ' 周年啦！';
+
+  // 收集年度数据
+  var statHTML = '<div class="anniversary-stat"><div class="anniversary-stat-num">' + years + '</div><div class="anniversary-stat-label">年相伴</div></div>';
+  if (dog.paw_points !== undefined) {
+    statHTML += '<div class="anniversary-stat"><div class="anniversary-stat-num">' + (dog.paw_points || 0) + '</div><div class="anniversary-stat-label">🖐️ 爪印</div></div>';
+  }
+  $('anniversaryStats').innerHTML = statHTML;
+
+  var woofs = [
+    '从我第一天踏进家门，主人就把我当成了家人。每一天的陪伴都是最好的礼物。',
+    '我们一起经历了春夏秋冬，一起散步、玩耍、依偎。谢谢主人没有缺席我的狗生。',
+    '从陌生到熟悉，从小心翼翼到肆无忌惮。家，就是有你在的地方。'
+  ];
+  $('anniversaryWoof').textContent = woofs[years % woofs.length];
+
+  var detail = '到家日：' + dog.home_date;
+  if (dog.weight) detail += ' ｜ 当前体重：' + dog.weight;
+  $('anniversaryDetail').textContent = detail;
+
+  $('anniversaryModalOverlay').style.display = 'flex';
+}
+
+function closeAnniversaryModal() {
+  $('anniversaryModalOverlay').style.display = 'none';
+}
+
 // 应用初始化：检查是否已有狗狗档案
 async function initApp() {
   try {
@@ -8834,19 +10284,19 @@ function renderExtraFields() {
   if (type === '疫苗') {
     html = `
       <div class="form-row">
-        <div class="form-col"><label>第几针</label><input id="efDose" placeholder="如：1 / 2 / 加强" /></div>
-        <div class="form-col"><label>备注</label><input id="efBrand" placeholder="如：品牌、批号等" /></div>
+        <div class="form-col"><label>第几针 <span class="optional">(选填)</span></label><input id="efDose" placeholder="如：1 / 2 / 加强" /><div class="field-hint">例：第1针 / 第2针 / 狂犬加强</div></div>
+        <div class="form-col"><label>备注 <span class="optional">(选填)</span></label><input id="efBrand" placeholder="如：品牌、批号等" /></div>
       </div>`;
   } else if (type === '驱虫') {
     html = `
       <div class="form-row">
-        <div class="form-col"><label>驱虫药品牌</label><input id="efBrand" placeholder="如：拜宠清、犬心保" /></div>
-        <div class="form-col"><label>类型</label><select id="efDewormType"><option>体内</option><option>体外</option><option>内外同驱</option></select></div>
+        <div class="form-col"><label>驱虫药品牌 <span class="optional">(选填)</span></label><input id="efBrand" placeholder="如：拜宠清、犬心保" /></div>
+        <div class="form-col"><label>类型 <span class="optional">(选填)</span></label><select id="efDewormType"><option>体内</option><option>体外</option><option>内外同驱</option></select></div>
       </div>`;
   } else if (type === '发情') {
     html = `
       <div class="form-row">
-        <div class="form-col"><label>备注（可选）</label><input id="efNote" placeholder="如：第一天、分泌物颜色等" /></div>
+        <div class="form-col"><label>备注 <span class="optional">(选填)</span></label><input id="efNote" placeholder="如：第一天、分泌物颜色等" /></div>
       </div>`;
   } else if (type === '异常行为') {
     html = `
@@ -9279,9 +10729,125 @@ $('btnCreateProfileHome').addEventListener('click', function() {
   initBirthdaySelects();
 });
 
+// ---- 自定义下拉选择 ----
+function initCustomSelect(selectId) {
+  const nativeSelect = $(selectId);
+  if (!nativeSelect) return;
+  if (nativeSelect._customSelectInited) return;
+  nativeSelect._customSelectInited = true;
+
+  // 隐藏原生 select
+  nativeSelect.style.display = 'none';
+
+  // 创建 wrapper
+  const wrapper = document.createElement('div');
+  wrapper.className = 'custom-select';
+  wrapper.id = 'cs-' + selectId;
+  nativeSelect.parentNode.insertBefore(wrapper, nativeSelect);
+  wrapper.appendChild(nativeSelect);
+
+  // 创建触发器
+  const trigger = document.createElement('div');
+  trigger.className = 'custom-select-trigger';
+  wrapper.appendChild(trigger);
+
+  // 创建下拉面板
+  const dropdown = document.createElement('div');
+  dropdown.className = 'custom-select-dropdown';
+  wrapper.appendChild(dropdown);
+
+  // 填充选项
+  function populateOptions() {
+    dropdown.innerHTML = '';
+    for (let i = 0; i < nativeSelect.options.length; i++) {
+      const opt = nativeSelect.options[i];
+      const optionEl = document.createElement('div');
+      optionEl.className = 'custom-select-option';
+      if (opt.selected) optionEl.classList.add('selected');
+      optionEl.textContent = opt.text;
+      optionEl.addEventListener('click', function(e) {
+        e.stopPropagation();
+        nativeSelect.value = opt.value;
+        nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        syncCustomSelect(selectId);
+        closeAllCustomSelects();
+      });
+      dropdown.appendChild(optionEl);
+    }
+  }
+
+  // 触发器点击
+  trigger.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const isOpen = wrapper.classList.contains('open');
+    closeAllCustomSelects();
+    if (!isOpen) {
+      populateOptions(); // 每次打开刷新选项（确保 selected 状态正确）
+      // 将下拉面板移到 body，避免被 modal-body 的 overflow 裁剪
+      document.body.appendChild(dropdown);
+      const rect = trigger.getBoundingClientRect();
+      dropdown.style.position = 'fixed';
+      dropdown.style.top = (rect.bottom + 4) + 'px';
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.width = rect.width + 'px';
+      dropdown.style.zIndex = '9999';
+      wrapper.classList.add('open');
+      // 滚动到选中项
+      const sel = dropdown.querySelector('.custom-select-option.selected');
+      if (sel) sel.scrollIntoView({ block: 'nearest' });
+    }
+  });
+
+  // 关闭时将下拉面板移回 wrapper
+  function onClose() {
+    if (dropdown.parentNode !== wrapper) {
+      wrapper.appendChild(dropdown);
+      dropdown.style.position = '';
+      dropdown.style.top = '';
+      dropdown.style.left = '';
+      dropdown.style.width = '';
+      dropdown.style.zIndex = '';
+    }
+  }
+  // 监听 open class 移除
+  const observer = new MutationObserver(function() {
+    if (!wrapper.classList.contains('open')) onClose();
+  });
+  observer.observe(wrapper, { attributes: true, attributeFilter: ['class'] });
+
+  // 初始显示
+  syncCustomSelect(selectId);
+}
+
+function syncCustomSelect(selectId) {
+  const nativeSelect = $(selectId);
+  const wrapper = $(('cs-' + selectId));
+  if (!nativeSelect || !wrapper) return;
+  const trigger = wrapper.querySelector('.custom-select-trigger');
+  const selectedOption = nativeSelect.options[nativeSelect.selectedIndex];
+  if (trigger && selectedOption) {
+    trigger.textContent = selectedOption.text;
+  }
+}
+
+function closeAllCustomSelects() {
+  document.querySelectorAll('.custom-select.open').forEach(function(el) {
+    el.classList.remove('open');
+  });
+}
+
+// 全局点击关闭
+document.addEventListener('click', function() {
+  closeAllCustomSelects();
+  document.querySelectorAll('.hp-tip-trigger.tip-show').forEach(function(el) { el.classList.remove('tip-show'); });
+});
+
 // ---- 初始加载 ----
 (async function() {
   updateGreeting(null);
+  // 初始化品种自定义下拉
+  initCustomSelect('mBreed');
+  initCustomSelect('eBreed');
   const hasDog = await initApp();
   if (hasDog) {
     loadToday();
