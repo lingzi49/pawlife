@@ -3988,6 +3988,19 @@ body {
   background: var(--orange-light); border-color: var(--orange);
   color: var(--orange);
 }
+.btn-back-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1.5px solid var(--border); background: var(--card);
+  color: var(--brown-light); cursor: pointer;
+  font-size: 1.1em; font-family: inherit;
+  transition: all 0.2s; flex-shrink: 0;
+  line-height: 1; text-decoration: none; padding: 0;
+}
+.btn-back-icon:hover {
+  background: var(--orange-light); border-color: var(--orange);
+  color: var(--orange);
+}
 
 /* ===== 首页档案卡片 ===== */
 /* ===== 健康档案卡 ===== */
@@ -4107,6 +4120,14 @@ body {
   transition: opacity 0.2s;
 }
 .growth-more-link:hover { opacity: 0.75; }
+.growth-empty {
+  text-align: center; padding: 20px 12px;
+  background: #FDFBF7; border-radius: 16px;
+  border: 2px dashed var(--border);
+}
+.growth-empty-icon { font-size: 2.2em; margin-bottom: 8px; }
+.growth-empty-text { font-size: 0.95em; font-weight: 600; color: var(--brown); margin-bottom: 6px; }
+.growth-empty-hint { font-size: 0.82em; color: var(--muted); line-height: 1.5; }
 
 /* ===== 功能入口链接 ===== */
 
@@ -4447,7 +4468,8 @@ body {
   flex: 1;
 }
 .badge-emotion-count {
-  font-size: 1.15em; font-weight: 700; color: #C98A4B; margin-bottom: 4px;
+  font-size: 1em; font-weight: 700; color: #C98A4B; margin-bottom: 4px;
+  white-space: nowrap;
 }
 .badge-emotion-text {
   font-size: 0.88em; color: #8B6E5A; line-height: 1.6;
@@ -4928,11 +4950,12 @@ body {
   font-size: 1.15em; font-weight: 700; color: var(--brown);
 }
 .sub-page-header-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
+  display: grid; grid-template-columns: 36px 1fr 36px;
+  align-items: center; gap: 8px;
 }
-.sub-page-header-row .btn { flex-shrink: 0; }
-.sub-page-header-row .today-avatar-sm { flex-shrink: 0; }
+.sub-page-header-row .btn-back-icon { grid-column: 1; justify-self: start; }
+.sub-page-header-row .sub-page-title { grid-column: 2; text-align: center; }
+.sub-page-header-row .today-avatar-sm { grid-column: 3; justify-self: end; }
 
 /* ===== 容器与卡片 ===== */
 .container {
@@ -6051,8 +6074,8 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   .card-subtitle { font-size: 0.8em; }
 
   /* 子页面标题 */
-  .sub-page-title { font-size: 1.05em; }
-  .sub-page-header-row { flex-wrap: wrap; gap: 6px; }
+  .sub-page-title { font-size: 0.95em; }
+  .sub-page-header-row { gap: 4px; }
 
   /* 表单：移动端纵排 */
   .form-row { flex-direction: column; gap: 8px; margin-bottom: 8px; }
@@ -6386,23 +6409,27 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
         <span class="qr-label">饮食指导</span>
         <span class="qr-hint">按品种、年龄和体重量身推荐</span>
       </div>
-      <div class="quick-record-card-sm" onclick="navigateTo('weight')">
+      <div class="quick-record-card-sm" id="cardWeightHome" onclick="navigateTo('weight')">
         <span class="qr-icon-sm">⚖️</span>
         <span class="qr-label-sm">体重管理</span>
+        <span class="qr-hint" id="weightCardHint"></span>
       </div>
       <div class="quick-record-card-sm" onclick="navigateTo('reminders')">
         <span class="qr-icon-sm">📅</span>
         <span class="qr-label-sm">照护提醒</span>
+        <span class="qr-hint" id="reminderCardHint"></span>
       </div>
       <div class="quick-record-card-sm" onclick="navigateTo('badges')">
         <span class="qr-icon-sm">🎖️</span>
         <span class="qr-label-sm">健康成就</span>
+        <span class="qr-hint" id="badgeCardHint"></span>
       </div>
       <div class="quick-record-card-sm" id="cardSuppHome" onclick="navigateTo('supplement')">
         <span class="feature-badge" id="badgeSupplement" style="display:none;"></span>
         <span class="feature-paw-badge" id="badgePawSupplement" style="display:none;" onclick="event.stopPropagation();openEasterEgg();">🐾</span>
         <span class="qr-icon-sm">🛡️</span>
         <span class="qr-label-sm">营养补充</span>
+        <span class="qr-hint" id="suppCardHint"></span>
       </div>
     </div>
 
@@ -6446,7 +6473,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-record" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleRecord">📝 成长日记</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -6501,7 +6528,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-diet" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleDiet">🍖 伙食搭配</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -6522,7 +6549,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-badges" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleBadges">🏵️ 高光时刻</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -6588,7 +6615,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-supplement" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleSupplement">🛡️ 元气补给</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -6610,7 +6637,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-weight" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleWeight">⚖️ 身材管理</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -6629,10 +6656,10 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <!-- 记录体重 -->
     <div class="card" id="cardWeightRecord">
       <div class="card-title">📝 记录体重</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <span class="weight-input-wrap" style="flex:2;min-width:120px;"><input id="wlWeight" inputmode="decimal" placeholder="体重，如：12.5" style="padding:10px 12px;font-size:0.95em;" onblur="cleanWeightOnBlur(this)" /><span class="weight-unit">kg</span></span>
-        <input type="text" id="wlDate" readonly placeholder="选择日期" style="flex:1;min-width:120px;padding:10px 12px;font-size:0.95em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;" onclick="openDatePicker('wlDate')" />
-        <button class="btn btn-primary" id="btnAddWeight" style="flex:0 0 auto;">+ 记录体重</button>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;">
+        <span class="weight-input-wrap" style="flex:1;min-width:0;"><input id="wlWeight" inputmode="decimal" placeholder="体重，如：12.5" style="padding:10px 8px;font-size:0.9em;" onblur="cleanWeightOnBlur(this)" /><span class="weight-unit">kg</span></span>
+        <input type="text" id="wlDate" readonly placeholder="日期" style="flex:0 0 90px;padding:10px 4px;font-size:0.85em;cursor:pointer;background:#FFFDF7;border:1px solid var(--border);border-radius:8px;text-align:center;" onclick="openDatePicker('wlDate')" />
+        <button class="btn btn-primary" id="btnAddWeight" style="flex:0 0 auto;padding:10px 12px;font-size:0.88em;white-space:nowrap;">+ 记录</button>
       </div>
       <div class="weight-frequency-hint" id="weightFreqHint"></div>
     </div>
@@ -6676,7 +6703,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
   <div id="page-reminders" class="sub-page" style="display:none;">
     <div class="sub-page-header">
       <div class="sub-page-header-row">
-        <button class="btn-back-text" onclick="navigateTo('home')">← 返回首页</button>
+        <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
         <span class="sub-page-title" id="titleReminders">📅 贴心闹钟</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
@@ -7431,9 +7458,9 @@ function updateTodayDashboard(dog, age) {
     var hasNewPhoto = dog.health_photos.some(function(p) { return p.event_date && p.event_date.slice(0, 10) === todayStr; });
     newPhotoBadge.style.display = hasNewPhoto ? 'inline-block' : 'none';
   }
-  loadStatusBarStreak();
+  loadStatusBarStreak(dog);
   loadStatusBarRecent();
-  loadDailyCheckStatus();
+  loadDailyCheckStatus(dog);
 }
 
 async function loadStatusBarRecent() {
@@ -7454,11 +7481,23 @@ async function loadStatusBarRecent() {
         return ev.type === '异常行为' && new Date(ev.date).getTime() >= nowTs - 30 * dayMs;
       }).length;
       const reminder = $('tdReminder');
-      if (reminder && abnormalCount >= 3) {
-        reminder.innerHTML = '<span class="abnormal-alert" style="display:inline-block;margin-top:4px;padding:4px 10px;">⚠️ 最近 30 天已有 <b>' + abnormalCount + '</b> 次异常，建议尽快咨询兽医</span>';
-      } else if (reminder) {
-        reminder.innerHTML = '';
+      var reminderHtml = '';
+      if (abnormalCount >= 3) {
+        reminderHtml += '<span class="abnormal-alert" style="display:inline-block;margin-top:4px;padding:4px 10px;">⚠️ 最近 30 天已有 <b>' + abnormalCount + '</b> 次异常，建议尽快咨询兽医</span>';
       }
+      // BCS 体况评估轻提示
+      var bcs = sessionStorage.getItem('bcsAssessment');
+      var bcsDate = sessionStorage.getItem('bcsAssessmentDate');
+      if (!bcs) {
+        reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 还没做过体况评估呢，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">花 10 秒摸一下肋骨</a>吧～</span>';
+      } else {
+        var daysSinceBcs = bcsDate ? Math.floor((Date.now() - new Date(bcsDate).getTime()) / 86400000) : 0;
+        var bcsInterval = getBcsIntervalDays();
+        if (daysSinceBcs >= bcsInterval) {
+          reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 有阵子没评估体态了，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">去摸摸肋骨</a>确认一下～</span>';
+        }
+      }
+      if (reminder) reminder.innerHTML = reminderHtml;
     } else {
       el.textContent = '还没有健康记录，去记录第一件事吧～';
     }
@@ -7466,11 +7505,90 @@ async function loadStatusBarRecent() {
     const el = $('statusRecent');
     if (el) el.textContent = '';
   }
+  updateAllCardHints();
 }
 
-async function loadStatusBarStreak() {
+function updateWeightCardHint() {
+  var hint = $('weightCardHint');
+  if (!hint) return;
+  var bcs = sessionStorage.getItem('bcsAssessment');
+  var bcsDate = sessionStorage.getItem('bcsAssessmentDate');
+  if (!bcs) {
+    hint.textContent = '摸肋骨评估胖瘦';
+  } else {
+    var labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
+    var daysSince = bcsDate ? Math.floor((Date.now() - new Date(bcsDate).getTime()) / 86400000) : 0;
+    if (daysSince >= getBcsIntervalDays()) {
+      hint.textContent = (labels[bcs] || '') + ' · 该重新评估了';
+      hint.style.color = 'var(--orange)';
+    } else {
+      hint.textContent = '体况：' + (labels[bcs] || '');
+      hint.style.color = '';
+    }
+  }
+}
+
+function updateAllCardHints() {
+  updateWeightCardHint();
+  updateReminderCardHint();
+  updateBadgeCardHint();
+  updateSuppCardHint();
+}
+
+async function updateReminderCardHint() {
+  var hint = $('reminderCardHint');
+  if (!hint || !_cachedDog) return;
   try {
-    const status = await api('/api/checkin/status?pet_id=' + (_cachedDog?.id || 1));
+    var data = await api('/api/health_check');
+    if (data.reminders && data.reminders.length > 0) {
+      hint.textContent = data.reminders.length + ' 件事待办';
+      hint.style.color = 'var(--orange)';
+    } else {
+      hint.textContent = '一切正常';
+      hint.style.color = '';
+    }
+  } catch(e) { hint.textContent = ''; }
+}
+
+async function updateBadgeCardHint() {
+  var hint = $('badgeCardHint');
+  if (!hint || !_cachedDog) return;
+  try {
+    var data = await api('/api/badges?pet_id=' + _cachedDog.id);
+    var unlocked = data.badges.filter(function(b){ return b.unlocked; }).length;
+    var total = data.badges.length;
+    if (unlocked > 0) {
+      hint.textContent = unlocked + '/' + total + ' 已解锁';
+      hint.style.color = '';
+    } else {
+      hint.textContent = '待解锁';
+      hint.style.color = '';
+    }
+  } catch(e) { hint.textContent = ''; }
+}
+
+async function updateSuppCardHint() {
+  var hint = $('suppCardHint');
+  if (!hint || !_cachedDog) return;
+  try {
+    var data = await api('/api/supplements');
+    if (data.suspended) {
+      hint.textContent = '已暂停';
+      hint.style.color = 'var(--red)';
+    } else if (data.alerts && data.alerts.length > 0) {
+      hint.textContent = data.alerts.length + ' 项推荐';
+      hint.style.color = 'var(--orange)';
+    } else {
+      hint.textContent = '暂无推荐';
+      hint.style.color = '';
+    }
+  } catch(e) { hint.textContent = ''; }
+}
+
+async function loadStatusBarStreak(dog) {
+  try {
+    const petId = (dog && dog.id) ? dog.id : (_cachedDog?.id || 1);
+    const status = await api('/api/checkin/status?pet_id=' + petId);
     const el = $('statusStreak');
     if (!el || !status) return;
     el.style.display = '';
@@ -7516,31 +7634,13 @@ function getDailyCheckPrompt() {
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
-
-  // 优先：BCS 到期需重新评估 → 成为今日检查项
-  if (bcsNeedsRenewal()) {
-    var bcs = sessionStorage.getItem('bcsAssessment');
-    if (!bcs) {
-      return { icon: '🤚', title: '体态评估', desc: '还没评估过<span class="pet-name-inline">狗狗</span>的体况呢～去「体重管理」摸一下肋骨，比体重数字更科学哦！<br><a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">👉 去评估体态</a>' };
-    }
-    var labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
-    return { icon: '🤚', title: '更新体态评估', desc: '上次评估结果：<b>' + labels[bcs] + '</b>（已过评估间隔）。再去摸一下<span class="pet-name-inline">狗狗</span>的肋骨，确认体态是否有变化。<br><a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">👉 去重新评估</a>' };
-  }
-
-  // 次优先：BCS 非理想时，每 3 天一次体态关注提醒
-  var bcs2 = sessionStorage.getItem('bcsAssessment');
-  if ((bcs2 === 'heavy' || bcs2 === 'thin') && dayOfYear % 3 === 0) {
-    return bcs2 === 'heavy'
-      ? { icon: '⚖️', title: '体态关注', desc: '当前体态评估为<b>偏胖</b>。今天带<span class="pet-name-inline">狗狗</span>多走 5 分钟，少吃几颗零食——小改变有大效果！' }
-      : { icon: '⚖️', title: '体态关注', desc: '当前体态评估为<b>偏瘦</b>。试试在<span class="pet-name-inline">狗狗</span>的饭里加一小勺鸡肉碎，营养密度更高～' };
-  }
-
   return _dailyCheckPrompts[dayOfYear % _dailyCheckPrompts.length];
 }
 
-async function loadDailyCheckStatus() {
+async function loadDailyCheckStatus(dog) {
   try {
-    const data = await api('/api/daily_check?pet_id=' + (_cachedDog?.id || 1));
+    const petId = (dog && dog.id) ? dog.id : (_cachedDog?.id || 1);
+    const data = await api('/api/daily_check?pet_id=' + petId);
     const actions = $('dailyCheckActions');
     const completed = $('dailyCheckCompleted');
     const badge = $('dailyCheckBadge');
@@ -7935,6 +8035,13 @@ async function loadCompactGrowth() {
         '</div>';
     });
     html += '</div>';
+  } else {
+    html += '<div class="growth-empty">' +
+      '<div class="growth-empty-icon">📸</div>' +
+      '<div class="growth-empty-text">还没有成长照片呢～</div>' +
+      '<div class="growth-empty-hint">记录疫苗、洗澡或异常行为时，<br>上传一张纪念照，这里就会慢慢填满啦</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'record\')" style="margin-top:6px;">📝 去记录事件</button>' +
+      '</div>';
   }
 
   // 最近勋章（已解锁 + 下一枚锁定放同一行）
@@ -9030,7 +9137,7 @@ $('btnAddWeight').addEventListener('click', async function() {
     showToast(e.message || '记录体重失败', true);
   }
   btn.disabled = false;
-  btn.textContent = '+ 记录体重';
+  btn.textContent = '+ 记录';
 });
 
 // ---- 健康提醒页面 ----
@@ -9108,6 +9215,22 @@ async function loadRemindersPage() {
       reminders.push({ icon: '⚖️', title: '开始记录体重', desc: '定期记录体重可以及时发现健康问题，现在开始记录第一笔吧。', action: '去记录', target: 'weight' });
     }
 
+    // BCS 体况评估提醒
+    (function() {
+      var bcs = sessionStorage.getItem('bcsAssessment');
+      var bcsDate = sessionStorage.getItem('bcsAssessmentDate');
+      var daysSince = bcsDate ? Math.floor((Date.now() - new Date(bcsDate).getTime()) / 86400000) : null;
+      var intervalDays = getBcsIntervalDays();
+      if (!bcs) {
+        reminders.push({ icon: '🤚', title: '开始体况评估', desc: '还没评估过' + _cachedDog.name + '的体况呢～花 10 秒摸一下肋骨，比体重数字更科学哦。', action: '去评估', target: 'weight' });
+      } else if (daysSince !== null && daysSince >= intervalDays) {
+        var labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
+        reminders.push({ icon: '🤚', title: '更新体况评估', desc: '上次评估结果：' + (labels[bcs] || '未知') + '（已过 ' + daysSince + ' 天）。再去摸一下' + _cachedDog.name + '的肋骨，看看有没变化～', action: '去评估', target: 'weight' });
+      } else if ((bcs === 'thin' || bcs === 'heavy') && daysSince !== null && daysSince >= 3 && daysSince % 3 === 0) {
+        reminders.push({ icon: '⚖️', title: '体态关注', desc: bcs === 'heavy' ? '体态评估为偏胖，今天多走 5 分钟、少吃几颗零食～' : '体态评估为偏瘦，试试在饭里加一小勺鸡肉碎～', urgent: false });
+      }
+    })();
+
     // 每日检查提醒
     try {
       const checkData = await api('/api/daily_check?pet_id=' + _cachedDog.id);
@@ -9127,7 +9250,7 @@ async function loadRemindersPage() {
         '<div class="reminder-body">' +
         '<div class="reminder-title">' + escHtml(r.title) + '</div>' +
         '<div class="reminder-desc">' + escHtml(r.desc) + '</div>' +
-        (r.daysLeft ? '<div class="reminder-days">还剩 <b>' + r.daysLeft + '</b> 天</div>' : '') +
+        (r.daysLeft ? '<div class="reminder-days">' + (r.daysLeft <= 7 ? '只剩下 <b>' + r.daysLeft + '</b> 天啦' : r.daysLeft <= 30 ? '<b>' + r.daysLeft + '</b> 天后可以准备啦' : '距离下次建议还有 <b>' + r.daysLeft + '</b> 天') + '</div>' : '') +
         (r.action ? '<a class="reminder-action" onclick="navigateTo(\'' + r.target + '\')">' + r.action + ' →</a>' : '') +
         '</div></div>';
     });
@@ -9807,7 +9930,8 @@ function promptHealthPhotoUpload(eventId, eventType, eventDate) {
 // 处理 API 响应中的新勋章
 function handleNewBadges(newBadges) {
   if (newBadges && newBadges.length > 0) {
-    newBadges.forEach(b => showBadgeUnlockToast(b));
+    // 延迟显示勋章弹窗，避免与签到 toast 重叠
+    newBadges.forEach(function(b, i) { setTimeout(function() { showBadgeUnlockToast(b); }, 2800 + i * 600); });
   }
 }
 
@@ -10811,6 +10935,7 @@ function initCustomSelect(selectId) {
       // 将下拉面板移到 body，避免被 modal-body 的 overflow 裁剪
       document.body.appendChild(dropdown);
       const rect = trigger.getBoundingClientRect();
+      dropdown.style.display = 'block';
       dropdown.style.position = 'fixed';
       dropdown.style.top = (rect.bottom + 4) + 'px';
       dropdown.style.left = rect.left + 'px';
@@ -10827,6 +10952,7 @@ function initCustomSelect(selectId) {
   function onClose() {
     if (dropdown.parentNode !== wrapper) {
       wrapper.appendChild(dropdown);
+      dropdown.style.display = '';
       dropdown.style.position = '';
       dropdown.style.top = '';
       dropdown.style.left = '';
