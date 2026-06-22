@@ -5292,7 +5292,7 @@ input[type="file"]::file-selector-button:hover {
 }
 @media (max-width: 520px) {
   .timeline-menu {
-    right: auto; left: 0; top: auto; bottom: 100%;
+    right: 0; left: auto; top: auto; bottom: 100%;
     transform: none; margin-right: 0; margin-bottom: 4px;
   }
 }
@@ -7553,6 +7553,11 @@ async function updateReminderCardHint() {
 async function updateBadgeCardHint() {
   var hint = $('badgeCardHint');
   if (!hint || !_cachedDog) return;
+  if (_newBadgeNames.length > 0) {
+    hint.textContent = _newBadgeNames.length + ' 枚新勋章！';
+    hint.style.color = 'var(--orange)';
+    return;
+  }
   try {
     var data = await api('/api/badges?pet_id=' + _cachedDog.id);
     var unlocked = data.badges.filter(function(b){ return b.unlocked; }).length;
@@ -9241,6 +9246,13 @@ async function loadRemindersPage() {
       }
     } catch (e) {}
 
+    function daysText(r) {
+      if (r.daysLeft <= 7) return '只剩下 <b>' + r.daysLeft + '</b> 天啦';
+      if (r.daysLeft <= 30) return '<b>' + r.daysLeft + '</b> 天后可以准备啦';
+      if (r.title.indexOf('疫苗') !== -1) return '疫苗保护期内，<b>' + r.daysLeft + '</b> 天后再次关注';
+      if (r.title.indexOf('驱虫') !== -1) return '已按时驱虫，<b>' + r.daysLeft + '</b> 天后再次关注';
+      return '状态良好，<b>' + r.daysLeft + '</b> 天后再次检查';
+    }
     // 渲染
     let html = '';
     reminders.forEach(r => {
@@ -9250,7 +9262,7 @@ async function loadRemindersPage() {
         '<div class="reminder-body">' +
         '<div class="reminder-title">' + escHtml(r.title) + '</div>' +
         '<div class="reminder-desc">' + escHtml(r.desc) + '</div>' +
-        (r.daysLeft ? '<div class="reminder-days">' + (r.daysLeft <= 7 ? '只剩下 <b>' + r.daysLeft + '</b> 天啦' : r.daysLeft <= 30 ? '<b>' + r.daysLeft + '</b> 天后可以准备啦' : '距离下次建议还有 <b>' + r.daysLeft + '</b> 天') + '</div>' : '') +
+        (r.daysLeft ? '<div class="reminder-days">' + daysText(r) + '</div>' : '') +
         (r.action ? '<a class="reminder-action" onclick="navigateTo(\'' + r.target + '\')">' + r.action + ' →</a>' : '') +
         '</div></div>';
     });
@@ -9690,6 +9702,12 @@ let _badgeData = null;
 
 async function loadBadgeWall() {
   if (!_cachedDog) return;
+  if (_newBadgeNames.length > 0) {
+    _newBadgeNames.forEach(function(name) { showBadgeUnlockToast({name: name, icon: _newBadgeIcons[name] || ''}); });
+    _newBadgeNames = [];
+    _newBadgeIcons = {};
+    updateBadgeCardHint();
+  }
   try {
     const data = await api('/api/badges?pet_id=' + _cachedDog.id);
     _badgeData = data;
@@ -9927,11 +9945,19 @@ function promptHealthPhotoUpload(eventId, eventType, eventDate) {
   });
 }
 
-// 处理 API 响应中的新勋章
+// 处理 API 响应中的新勋章（静默更新卡片提示，不弹窗抢戏）
+let _newBadgeNames = [];
+let _newBadgeIcons = {};
+
 function handleNewBadges(newBadges) {
   if (newBadges && newBadges.length > 0) {
-    // 延迟显示勋章弹窗，避免与签到 toast 重叠
-    newBadges.forEach(function(b, i) { setTimeout(function() { showBadgeUnlockToast(b); }, 2800 + i * 600); });
+    newBadges.forEach(function(b) {
+      if (_newBadgeNames.indexOf(b.name) === -1) {
+        _newBadgeNames.push(b.name);
+        _newBadgeIcons[b.name] = b.icon || '';
+      }
+    });
+    updateBadgeCardHint();
   }
 }
 
