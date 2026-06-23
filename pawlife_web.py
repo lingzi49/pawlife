@@ -1517,6 +1517,10 @@ def api_dog_diet():
             "age_stage": age_stage,
             "body_size": body_size,
             "weight_kg": plan["weight_kg"],
+            "neutered": dog.neutered or "未知",
+            "activity_coeff": plan["coefficient"],
+            "rer": plan["rer"],
+            "der": plan["der"],
             "meals_per_day": meals,
             "meal_type": meal_type,
             "meal_name": meal_name,
@@ -2873,6 +2877,24 @@ def api_health_check():
                 "text": f"💊 {pick.woof_text.split(chr(10))[0]}",
             })
 
+        # BCS 体况评估提醒
+        latest_bcs = db.query(BcsLog).filter(BcsLog.dog_id == dog.id).order_by(BcsLog.date.desc()).first()
+        if not latest_bcs:
+            reminders.append({
+                "type": "体况评估",
+                "text": f"主人，还没给我做过体况评估呢～花 10 秒摸一下肋骨，比体重数字更科学哦！",
+            })
+        else:
+            days_since_bcs = (today - latest_bcs.date).days
+            bcs_interval = 14 if latest_bcs.bcs_state in ("thin", "heavy") else 30
+            if days_since_bcs >= bcs_interval:
+                state_labels = {"thin": "偏瘦", "ideal": "理想", "heavy": "偏胖"}
+                label = state_labels.get(latest_bcs.bcs_state, "未知")
+                reminders.append({
+                    "type": "体况评估",
+                    "text": f"主人，上次体况评估是{days_since_bcs}天前（{label}），该重新摸一下肋骨确认我的体态啦～",
+                })
+
         # 最后洗澡日期和下次洗澡到期日
         last_bath_date = dog.last_bath_date
         next_bath_due = None
@@ -3993,9 +4015,10 @@ body {
   width: 36px; height: 36px; border-radius: 50%;
   border: 1.5px solid var(--border); background: var(--card);
   color: var(--brown-light); cursor: pointer;
-  font-size: 1.1em; font-family: inherit;
+  font-size: 1.2em; font-weight: 600;
   transition: all 0.2s; flex-shrink: 0;
   line-height: 1; text-decoration: none; padding: 0;
+  transform: translateY(-3px);
 }
 .btn-back-icon:hover {
   background: var(--orange-light); border-color: var(--orange);
@@ -4018,9 +4041,9 @@ body {
 .hp-snapshot { margin-bottom: 4px; }
 
 /* 健康档案标签行 */
-.hp-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.hp-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
 .hp-tag {
-  font-size: 0.8em; padding: 3px 10px; border-radius: 12px;
+  font-size: 0.75em; padding: 3px 6px; border-radius: 12px;
   font-weight: 600; white-space: nowrap;
 }
 .hp-tag-good { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
@@ -4500,17 +4523,18 @@ body {
 .badge-memento {
   background: #FFFDF9; border-radius: 16px; padding: 16px 10px 12px;
   text-align: center; cursor: pointer; user-select: none;
-  border: 1.5px solid #EDE0CC; transition: all 0.25s;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  border: none; transition: all 0.25s;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   position: relative;
 }
-.badge-memento:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.07); }
-.badge-memento.unlocked { }
+.badge-memento:hover { transform: translateY(-4px); box-shadow: 0 6px 20px rgba(180,140,80,0.15); }
+.badge-memento.unlocked { background: #FFFDF5; }
 .badge-memento.locked {
-  background: #FCFAF7; border: 1.5px dashed #E0D5C5;
+  background: #FCFAF7; border: none;
   cursor: default;
 }
-.badge-memento.locked:hover { transform: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+.badge-memento.locked:hover { transform: none; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.badge-memento.locked .badge-memento-photo-area { opacity: 0.5; }
 .badge-memento-photo-area {
   position: relative; display: inline-block; margin: 0 auto 8px;
 }
@@ -4518,14 +4542,14 @@ body {
   width: 72px; height: 72px;
   border-radius: 50%; overflow: hidden;
   border: 3px solid #D4A853;
-  box-shadow: 0 0 0 3px #F5E6C8, 0 0 0 5px #D4A853, 0 2px 10px rgba(180,130,50,0.25);
+  box-shadow: 0 0 0 3px rgba(212,168,83,0.25), 0 0 16px rgba(200,150,60,0.18);
 }
 .badge-memento-icon img {
   width: 100%; height: 100%; object-fit: cover; display: block;
 }
 .badge-memento-icon-placeholder {
   width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  font-size: 2em; background: linear-gradient(135deg, #F5F0EB, #EDE5DA);
+  font-size: 2em; background: linear-gradient(135deg, #FFF8E1, #FFE082);
 }
 .badge-memento-pin {
   position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
@@ -4538,11 +4562,10 @@ body {
 }
 .badge-memento.locked .badge-memento-icon {
   border-color: #D8CFC0;
-  box-shadow: 0 0 0 3px #F5F1EC, 0 0 0 5px #D8CFC0, 0 1px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 0 0 3px rgba(200,190,175,0.15);
 }
 .badge-memento.locked .badge-memento-icon-placeholder {
-  background: linear-gradient(135deg, #F8F6F3, #EEEAE4);
-  font-size: 2em; opacity: 0.5;
+  background: #F3F1ED; opacity: 0.6;
 }
 .badge-memento.locked .badge-memento-pin {
   background: linear-gradient(135deg, #E8E4DE, #D0C8BC);
@@ -5038,7 +5061,7 @@ body {
 .form-col .field-error { color: var(--red); font-size: 0.78em; margin-top: 3px; display: none; }
 .form-col.error .field-error { display: block; }
 .field-hint { color: var(--muted); font-size: 0.78em; margin-top: 3px; }
-input, select, textarea {
+input, textarea {
   width: 100%;
   padding: 9px 12px;
   border: 1.5px solid var(--border);
@@ -5048,6 +5071,20 @@ input, select, textarea {
   background: #FFFAF2;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit;
+}
+select {
+  width: 100%;
+  padding: 10px 32px 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95em;
+  color: var(--brown);
+  background: #FFFAF2 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A6A55' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+  cursor: pointer;
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
@@ -6616,7 +6653,7 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="sub-page-header">
       <div class="sub-page-header-row">
         <button class="btn-back-icon" onclick="navigateTo('home')" title="返回首页">←</button>
-        <span class="sub-page-title" id="titleSupplement">🛡️ 元气补给</span>
+        <span class="sub-page-title" id="titleSupplement">⚡ 元气补给</span>
         <div class="today-avatar-sm" id="greetingAvatarSub">🐶</div>
       </div>
     </div>
@@ -7485,16 +7522,31 @@ async function loadStatusBarRecent() {
       if (abnormalCount >= 3) {
         reminderHtml += '<span class="abnormal-alert" style="display:inline-block;margin-top:4px;padding:4px 10px;">⚠️ 最近 30 天已有 <b>' + abnormalCount + '</b> 次异常，建议尽快咨询兽医</span>';
       }
-      // BCS 体况评估轻提示
-      var bcs = sessionStorage.getItem('bcsAssessment');
-      var bcsDate = sessionStorage.getItem('bcsAssessmentDate');
-      if (!bcs) {
-        reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 还没做过体况评估呢，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">花 10 秒摸一下肋骨</a>吧～</span>';
-      } else {
-        var daysSinceBcs = bcsDate ? Math.floor((Date.now() - new Date(bcsDate).getTime()) / 86400000) : 0;
-        var bcsInterval = getBcsIntervalDays();
-        if (daysSinceBcs >= bcsInterval) {
-          reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 有阵子没评估体态了，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">去摸摸肋骨</a>确认一下～</span>';
+      // BCS 体况评估轻提示（以服务端数据为准）
+      try {
+        const bcsData = await api('/api/bcs');
+        if (bcsData.latest) {
+          // 同步到 sessionStorage
+          sessionStorage.setItem('bcsAssessment', bcsData.latest);
+          sessionStorage.setItem('bcsAssessmentDate', bcsData.latest_date);
+          const daysSince = bcsData.latest_date ? Math.floor((Date.now() - new Date(bcsData.latest_date).getTime()) / 86400000) : 0;
+          const interval = (bcsData.latest === 'thin' || bcsData.latest === 'heavy') ? 14 : 30;
+          if (daysSince >= interval) {
+            const labels = {thin:'偏瘦', ideal:'理想', heavy:'偏胖'};
+            reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 上次体况' + (labels[bcsData.latest]||'') + '（' + daysSince + '天前），<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">再去摸摸肋骨</a>～</span>';
+          }
+        } else {
+          // 服务端无记录，检查 sessionStorage 兜底
+          var bcs = sessionStorage.getItem('bcsAssessment');
+          if (!bcs) {
+            reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 还没做过体况评估呢，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">花 10 秒摸一下肋骨</a>吧～</span>';
+          }
+        }
+      } catch (e) {
+        // API 失败时回退 sessionStorage
+        var bcsFallback = sessionStorage.getItem('bcsAssessment');
+        if (!bcsFallback) {
+          reminderHtml += '<span class="td-reminder" style="display:block;margin-top:2px;">🤚 还没做过体况评估呢，<a href="javascript:navigateTo(\'weight\')" style="color:var(--orange);">花 10 秒摸一下肋骨</a>吧～</span>';
         }
       }
       if (reminder) reminder.innerHTML = reminderHtml;
@@ -8044,7 +8096,7 @@ async function loadCompactGrowth() {
     html += '<div class="growth-empty">' +
       '<div class="growth-empty-icon">📸</div>' +
       '<div class="growth-empty-text">还没有成长照片呢～</div>' +
-      '<div class="growth-empty-hint">记录疫苗、洗澡或异常行为时，<br>上传一张纪念照，这里就会慢慢填满啦</div>' +
+      '<div class="growth-empty-hint">记录疫苗、洗澡时，拍张纪念照，<br>这里就会慢慢填满啦</div>' +
       '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'record\')" style="margin-top:6px;">📝 去记录事件</button>' +
       '</div>';
   }
@@ -9164,12 +9216,12 @@ async function loadRemindersPage() {
     if (vaccineEvents.length > 0) {
       const lastVax = vaccineEvents.reduce((a, b) => a.date > b.date ? a : b);
       const nextVax = new Date(lastVax.date);
-      nextVax.setDate(nextVax.getDate() + 365); // 标准年度疫苗
+      nextVax.setDate(nextVax.getDate() + 365);
       const daysLeft = Math.ceil((nextVax - new Date()) / (1000 * 60 * 60 * 24));
       if (daysLeft <= 0) {
-        reminders.push({ icon: '🔴', title: '疫苗已过期', desc: '距上次疫苗已超过 1 年（' + lastVax.date + '），请尽快联系兽医安排接种。', urgent: true });
+        reminders.push({ icon: '🔴', title: '疫苗已过期', desc: '距上次疫苗已超过 1 年（' + lastVax.date + '），请尽快联系兽医安排接种。', urgent: true, action: '去记录', target: 'record' });
       } else if (daysLeft <= 30) {
-        reminders.push({ icon: '🟡', title: '疫苗即将到期', desc: '下次疫苗建议在 ' + nextVax.toISOString().slice(0, 10) + '，可以提前预约了。', daysLeft: daysLeft, urgent: false });
+        reminders.push({ icon: '🟡', title: '疫苗即将到期', desc: '下次疫苗建议在 ' + nextVax.toISOString().slice(0, 10) + '，可以提前预约了。', daysLeft: daysLeft, urgent: false, action: '去记录', target: 'record' });
       } else {
         reminders.push({ icon: '🟢', title: '疫苗状态正常', desc: '上次接种：' + lastVax.date + '，下次建议：' + nextVax.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
       }
@@ -9187,9 +9239,9 @@ async function loadRemindersPage() {
       nextDeworm.setDate(nextDeworm.getDate() + dewormInterval);
       const daysLeft = Math.ceil((nextDeworm - new Date()) / (1000 * 60 * 60 * 24));
       if (daysLeft <= 0) {
-        reminders.push({ icon: '🔴', title: '驱虫已过期', desc: '距上次驱虫已超过 ' + dewormInterval + ' 天（' + lastDeworm.date + '），请尽快安排驱虫。', urgent: true });
+        reminders.push({ icon: '🔴', title: '驱虫已过期', desc: '距上次驱虫已超过 ' + dewormInterval + ' 天（' + lastDeworm.date + '），请尽快安排驱虫。', urgent: true, action: '去记录', target: 'record' });
       } else if (daysLeft <= 14) {
-        reminders.push({ icon: '🟡', title: '驱虫即将到期', desc: '下次驱虫建议在 ' + nextDeworm.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
+        reminders.push({ icon: '🟡', title: '驱虫即将到期', desc: '下次驱虫建议在 ' + nextDeworm.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false, action: '去记录', target: 'record' });
       } else {
         reminders.push({ icon: '🟢', title: '驱虫状态正常', desc: '上次驱虫：' + lastDeworm.date + '，下次建议：' + nextDeworm.toISOString().slice(0, 10) + '。', daysLeft: daysLeft, urgent: false });
       }
@@ -9220,21 +9272,25 @@ async function loadRemindersPage() {
       reminders.push({ icon: '⚖️', title: '开始记录体重', desc: '定期记录体重可以及时发现健康问题，现在开始记录第一笔吧。', action: '去记录', target: 'weight' });
     }
 
-    // BCS 体况评估提醒
-    (function() {
-      var bcs = sessionStorage.getItem('bcsAssessment');
-      var bcsDate = sessionStorage.getItem('bcsAssessmentDate');
-      var daysSince = bcsDate ? Math.floor((Date.now() - new Date(bcsDate).getTime()) / 86400000) : null;
-      var intervalDays = getBcsIntervalDays();
-      if (!bcs) {
-        reminders.push({ icon: '🤚', title: '开始体况评估', desc: '还没评估过' + _cachedDog.name + '的体况呢～花 10 秒摸一下肋骨，比体重数字更科学哦。', action: '去评估', target: 'weight' });
-      } else if (daysSince !== null && daysSince >= intervalDays) {
-        var labels = { thin: '偏瘦', ideal: '理想', heavy: '偏胖' };
-        reminders.push({ icon: '🤚', title: '更新体况评估', desc: '上次评估结果：' + (labels[bcs] || '未知') + '（已过 ' + daysSince + ' 天）。再去摸一下' + _cachedDog.name + '的肋骨，看看有没变化～', action: '去评估', target: 'weight' });
-      } else if ((bcs === 'thin' || bcs === 'heavy') && daysSince !== null && daysSince >= 3 && daysSince % 3 === 0) {
-        reminders.push({ icon: '⚖️', title: '体态关注', desc: bcs === 'heavy' ? '体态评估为偏胖，今天多走 5 分钟、少吃几颗零食～' : '体态评估为偏瘦，试试在饭里加一小勺鸡肉碎～', urgent: false });
-      }
-    })();
+    // 从 health_check 补充客户端未计算的提醒：洗澡、保健品、体况评估
+    try {
+      const healthData = await api('/api/health_check');
+      const supplementTypes = ['洗澡澡', '保健品', '体况评估'];
+      const supplementIcons = { '洗澡澡': '🛁', '保健品': '💊', '体况评估': '🤚' };
+      const supplementActions = { '洗澡澡': { action: '去记录', target: 'record' }, '保健品': { action: '去看看', target: 'supplement' }, '体况评估': { action: '去评估', target: 'weight' } };
+      healthData.reminders.forEach(r => {
+        if (supplementTypes.indexOf(r.type) !== -1) {
+          const t = supplementActions[r.type] || {};
+          reminders.push({
+            icon: supplementIcons[r.type] || '📌',
+            title: r.type,
+            desc: r.text,
+            action: t.action || null,
+            target: t.target || null,
+          });
+        }
+      });
+    } catch (e) {}
 
     // 每日检查提醒
     try {
@@ -9670,7 +9726,7 @@ function navigateTo(page) {
     'record':    { el: 'titleRecord',    icon: '📝', text: dogName ? dogName + '的成长日记' : '成长日记' },
     'diet':      { el: 'titleDiet',      icon: '🍖', text: dogName ? dogName + '的伙食搭配' : '伙食搭配' },
     'badges':    { el: 'titleBadges',    icon: '🏵️', text: dogName ? dogName + '的高光时刻' : '高光时刻' },
-    'supplement':{ el: 'titleSupplement',icon: '🛡️', text: dogName ? dogName + '的元气补给' : '元气补给' },
+    'supplement':{ el: 'titleSupplement',icon: '⚡', text: dogName ? dogName + '的元气补给' : '元气补给' },
     'weight':    { el: 'titleWeight',    icon: '⚖️', text: dogName ? dogName + '的身材管理' : '身材管理' },
     'reminders': { el: 'titleReminders', icon: '📅', text: dogName ? dogName + '的贴心闹钟' : '贴心闹钟' }
   };
