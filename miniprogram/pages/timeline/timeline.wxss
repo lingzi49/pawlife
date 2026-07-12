@@ -1,0 +1,53 @@
+/* 时间线页样式 */
+.timeline-header {
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--brown);
+  margin-bottom: 20rpx;
+}
+
+/* 分类筛选 */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10rpx; margin-bottom: 20rpx; }
+.tl-filter {
+  display: inline-block;
+  padding: 8rpx 20rpx;
+  border-radius: 28rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  border: 2rpx solid var(--border);
+  color: var(--muted);
+  background: #FFFAF2;
+  transition: all 0.2s;
+}
+.tl-filter.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+/* 时间线列表 */
+.timeline-item {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--border);
+  align-items: flex-start;
+  position: relative;
+}
+.timeline-item:last-child { border-bottom: none; }
+.timeline-icon-bg {
+  width: 64rpx; height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  flex-shrink: 0;
+}
+.timeline-icon-bg.疫苗 { background: #E8F5E9; }
+.timeline-icon-bg.驱虫 { background: #FFF3E0; }
+.timeline-icon-bg.发情 { background: #FCE4EC; }
+.timeline-icon-bg.异常行为 { background: #FFEBEE; }
+.timeline-icon-bg.洗澡澡 { background: #E0F7FA; }
+.timeline-body { flex: 1; min-width: 0; }
+.timeline-date { font-size: 24rpx; color: var(--muted); }
+.timeline-type { font-size: 28rpx; font-weight: 600; color: var(--brown); margin-top: 2rpx; }
+.timeline-desc { font-size: 24rpx; color: var(--brown-light); margin-top: 4rpx; }
+.timeline-risk { font-size: 22rpx; color: #D94A4A; font-weight: 600; margin-top: 4rpx; }

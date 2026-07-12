@@ -1,0 +1,46 @@
+<!-- 保健品页面 -->
+<navbar title="必备保健品" />
+
+<view class="container">
+  <!-- 暂停状态 -->
+  <view class="suspend-banner" wx:if="{{suspended}}">
+    <text>🚨 今日保健品建议已暂停。请优先联系兽医！</text>
+    <button class="btn btn-sm btn-outline" bindtap="restoreSuggestions">已联系兽医，恢复建议</button>
+  </view>
+
+  <!-- 保健品列表 -->
+  <block wx:if="{{hasDog && !suspended}}">
+    <view class="supplement-header">
+      <text>💊 {{dogName}} 的保健品清单</text>
+    </view>
+
+    <view wx:if="{{alerts.length > 0}}">
+      <view class="supplement-card" wx:for="{{alerts}}" wx:key="id">
+        <view class="supplement-priority">
+          <text class="priority-dot {{item.priority === 1 ? 'urgent' : 'normal'}}"></text>
+        </view>
+        <view class="supplement-body">
+          <view class="supplement-name">{{item.supplement_name}}</view>
+          <view class="supplement-reason">📋 {{item.reason}}</view>
+          <view class="supplement-woof">💬 {{item.woof_text}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:else>
+      <view style="font-size:64rpx;">💊</view>
+      <view>当前没有保健品建议，狗狗很健康哦～</view>
+    </view>
+
+    <!-- 免责声明 -->
+    <view class="disclaimer-inline" style="margin-top:32rpx;">
+      📋 保健品建议基于狗狗档案自动生成，仅供参考，不能替代兽医的专业诊断。使用前请咨询兽医。
+    </view>
+  </block>
+
+  <!-- 未建档 -->
+  <view class="empty-state" wx:if="{{!hasDog}}">
+    <view style="font-size:80rpx;">🐶</view>
+    <view>主人，请先在"我的"页创建狗狗档案哦～</view>
+  </view>
+</view>

@@ -1,0 +1,108 @@
+<!-- 我的档案页面 -->
+<navbar title="我的档案" />
+
+<view class="container">
+  <!-- 已建档：展示 + 编辑入口 -->
+  <block wx:if="{{hasDog}}">
+    <view class="card">
+      <!-- 照片区域 -->
+      <view class="photo-area" bindtap="choosePhoto">
+        <image wx:if="{{dog.photo}}" src="{{baseUrl}}/photos/{{dog.photo}}" mode="aspectFill" class="profile-photo" />
+        <view wx:else class="profile-photo-placeholder">{{breedIcon}}</view>
+        <view class="photo-camera">📷 点击更换</view>
+      </view>
+
+      <!-- 档案信息 -->
+      <view class="info-grid">
+        <view class="info-row"><text class="info-label">🐶 名字</text><text class="info-value">{{dog.name}}</text></view>
+        <view class="info-row"><text class="info-label">🐕 品种</text><text class="info-value">{{dog.breed}}</text></view>
+        <view class="info-row"><text class="info-label">🎂 生日</text><text class="info-value">{{dog.birthday}}（{{dogAge}}）</text></view>
+        <view class="info-row"><text class="info-label">⚖️ 体重</text><text class="info-value">{{dog.weight || '未填写'}}</text></view>
+        <view class="info-row"><text class="info-label">⚥ 性别</text><text class="info-value">{{genderLabel}}</text></view>
+        <view class="info-row"><text class="info-label">✂️ 绝育</text><text class="info-value">{{dog.neutered || '未知'}}</text></view>
+        <view class="info-row"><text class="info-label">⚠️ 过敏源</text><text class="info-value">{{dog.allergies || '未填写'}}</text></view>
+        <view class="info-row"><text class="info-label">🏥 健康状况</text><text class="info-value">{{dog.diseases || '未填写'}}</text></view>
+      </view>
+
+      <button class="btn btn-outline btn-block" bindtap="openEdit">✏️ 编辑档案</button>
+    </view>
+
+    <!-- 子功能入口 -->
+    <view class="sub-menu">
+      <view class="sub-menu-item" bindtap="goTimeline"><text>📅 大事记</text><text class="arrow">→</text></view>
+      <view class="sub-menu-item" bindtap="goDiet"><text>🍖 饮食宝典</text><text class="arrow">→</text></view>
+      <view class="sub-menu-item" bindtap="goSupplement"><text>🛡️ 保健品小队</text><text class="arrow">→</text></view>
+      <view class="sub-menu-item" bindtap="exportData"><text>📥 备份数据</text><text class="arrow">→</text></view>
+    </view>
+  </block>
+
+  <!-- 未建档：创建表单 -->
+  <block wx:if="{{!hasDog}}">
+    <view class="card">
+      <view class="modal-header">
+        <view class="modal-logo">🐾</view>
+        <view class="modal-title">欢迎来到 PawLife！</view>
+        <view class="modal-sub">填写下面的小档案，只需要 1 分钟！</view>
+      </view>
+
+      <view class="form-group"><view class="form-label"><text class="required">*</text> 我的名字</view><input placeholder="汪！我的名字是…" maxlength="64" value="{{form.name}}" bindinput="onFieldInput" data-field="name" /></view>
+      <view class="form-group">
+        <view class="form-label"><text class="required">*</text> 品种</view>
+        <picker mode="selector" range="{{breeds}}" value="{{breedIndex}}" bindchange="onBreedChange">
+          <view class="picker-display">{{breeds[breedIndex]}}</view>
+        </picker>
+      </view>
+      <view class="form-group"><view class="form-label"><text class="required">*</text> 生日</view><picker mode="date" value="{{form.birthday}}" end="{{today}}" bindchange="onFieldChange" data-field="birthday"><view class="picker-display">{{form.birthday || '选择生日'}}</view></picker></view>
+      <view class="form-row">
+        <view class="form-col"><view class="form-label">体重</view><input placeholder="例：28kg" value="{{form.weight}}" bindinput="onFieldInput" data-field="weight" /></view>
+        <view class="form-col">
+          <view class="form-label">性别</view>
+          <picker mode="selector" range="{{genders}}" value="{{genderIndex}}" bindchange="onGenderChange">
+            <view class="picker-display">{{genders[genderIndex]}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="form-row">
+        <view class="form-col">
+          <view class="form-label">绝育</view>
+          <picker mode="selector" range="{{neuterOptions}}" value="{{neuterIndex}}" bindchange="onNeuterChange">
+            <view class="picker-display">{{neuterOptions[neuterIndex]}}</view>
+          </picker>
+        </view>
+        <view class="form-col"><view class="form-label">过敏源</view><input placeholder="鸡肉,谷物" value="{{form.allergies}}" bindinput="onFieldInput" data-field="allergies" /></view>
+      </view>
+      <view class="form-group"><view class="form-label">已知健康状况</view><input placeholder="如：慢性肾病、胰腺炎" value="{{form.diseases}}" bindinput="onFieldInput" data-field="diseases" /></view>
+
+      <!-- 免责声明 -->
+      <view class="disclaimer-box">
+        ⚠️ 免责声明：本应用提供的所有内容（包括饮食建议、保健品提醒、事件提醒等）仅供参考和教育目的，不能替代执业兽医的专业诊断、治疗或建议。如您的宠物出现任何健康问题或紧急情况，请立即联系持证兽医。
+      </view>
+      <view class="disclaimer-check">
+        <label><checkbox checked="{{disclaimerAgreed}}" bindtap="toggleDisclaimer" />我已阅读并理解上述免责声明</label>
+      </view>
+
+      <button class="btn btn-primary btn-block btn-lg" bindtap="createProfile" loading="{{saving}}" disabled="{{saving}}">
+        🐾 完成建档，开启汪生！
+      </button>
+    </view>
+  </block>
+
+  <!-- 编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showEdit}}" bindtap="closeEdit">
+    <view class="modal-card edit-modal" catchtap="">
+      <view class="modal-title">✏️ 编辑档案</view>
+      <scroll-view scroll-y style="max-height:70vh;">
+        <view class="form-group"><view class="form-label">名字</view><input value="{{editForm.name}}" bindinput="onEditInput" data-field="name" /></view>
+        <view class="form-group"><view class="form-label">体重</view><input value="{{editForm.weight}}" bindinput="onEditInput" data-field="weight" /></view>
+        <view class="form-group"><view class="form-label">过敏源</view><input value="{{editForm.allergies}}" bindinput="onEditInput" data-field="allergies" /></view>
+        <view class="form-group"><view class="form-label">已知健康状况</view><input value="{{editForm.diseases}}" bindinput="onEditInput" data-field="diseases" /></view>
+      </scroll-view>
+      <view class="btn-row">
+        <button class="btn btn-outline" bindtap="closeEdit">取消</button>
+        <button class="btn btn-primary" bindtap="saveEdit" loading="{{saving}}">💾 保存</button>
+      </view>
+    </view>
+  </view>
+</view>
+
+<toast id="toast" />

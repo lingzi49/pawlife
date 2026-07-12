@@ -1,0 +1,39 @@
+/* 自定义导航栏 */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background: var(--cream);
+}
+
+.navbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24rpx;
+}
+
+.navbar-back {
+  width: 120rpx;
+  font-size: 28rpx;
+  color: var(--brown);
+  font-weight: 600;
+}
+
+.navbar-back-placeholder {
+  width: 120rpx;
+}
+
+.navbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--brown);
+}
+
+.navbar-right {
+  width: 120rpx;
+}

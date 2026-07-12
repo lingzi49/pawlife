@@ -1,0 +1,96 @@
+<!-- 记录事件页面 -->
+<navbar title="记录事件" />
+
+<view class="container">
+  <view class="card" wx:if="{{hasDog}}">
+    <view class="card-subtitle">{{eventSubtitle}}</view>
+
+    <!-- 事件类型选择 -->
+    <view class="form-group">
+      <view class="form-label">事件类型</view>
+      <picker mode="selector" range="{{eventTypes}}" value="{{eventTypeIndex}}" bindchange="onTypeChange">
+        <view class="picker-display">{{eventTypes[eventTypeIndex]}}</view>
+      </picker>
+    </view>
+
+    <!-- 日期选择 -->
+    <view class="form-group">
+      <view class="form-label">日期</view>
+      <picker mode="date" value="{{eventDate}}" end="{{today}}" bindchange="onDateChange">
+        <view class="picker-display">{{eventDate || '选择日期'}}</view>
+      </picker>
+    </view>
+
+    <!-- 动态表单：疫苗 -->
+    <block wx:if="{{eventType === '疫苗'}}">
+      <view class="form-group"><view class="form-label">剂量</view><input placeholder="如：卫佳捌 1头份" value="{{dose}}" bindinput="onDoseInput" /></view>
+      <view class="form-group"><view class="form-label">品牌</view><input placeholder="如：硕腾" value="{{brand}}" bindinput="onBrandInput" /></view>
+    </block>
+
+    <!-- 动态表单：驱虫 -->
+    <block wx:if="{{eventType === '驱虫'}}">
+      <view class="form-group">
+        <view class="form-label">驱虫类型</view>
+        <picker mode="selector" range="{{dewormTypes}}" value="{{dewormTypeIndex}}" bindchange="onDewormTypeChange">
+          <view class="picker-display">{{dewormTypes[dewormTypeIndex]}}</view>
+        </picker>
+      </view>
+      <view class="form-group"><view class="form-label">品牌</view><input placeholder="如：拜耳" value="{{brand}}" bindinput="onBrandInput" /></view>
+    </block>
+
+    <!-- 动态表单：发情 -->
+    <block wx:if="{{eventType === '发情'}}">
+      <view class="form-group"><view class="form-label">备注</view><input placeholder="如：第一天，少量出血" value="{{note}}" bindinput="onNoteInput" /></view>
+    </block>
+
+    <!-- 动态表单：异常行为 -->
+    <block wx:if="{{eventType === '异常行为'}}">
+      <view class="form-group">
+        <view class="form-label">选择症状（可多选）</view>
+        <checkbox-group bindchange="onSymptomsChange">
+          <view class="symptom-grid">
+            <label class="symptom-tag" wx:for="{{symptomOptions}}" wx:key="*this">
+              <checkbox value="{{item}}" checked="{{symptoms.indexOf(item) > -1}}" />
+              <text>{{item}}</text>
+            </label>
+          </view>
+        </checkbox-group>
+      </view>
+    </block>
+
+    <!-- 提交 -->
+    <button class="btn btn-primary btn-block btn-lg" bindtap="submitEvent" loading="{{submitting}}" disabled="{{submitting}}">
+      🐾 提交记录
+    </button>
+
+    <!-- 反馈区 -->
+    <view class="reaction-box" wx:if="{{reaction}}" style="display:block;">
+      <text class="reaction-text">{{reaction}}</text>
+    </view>
+  </view>
+
+  <!-- 未建档 -->
+  <view class="empty-state" wx:if="{{!hasDog}}">
+    <view style="font-size:80rpx;margin-bottom:20rpx;">🐶</view>
+    <view>主人，请先在"我的"页创建狗狗档案哦～</view>
+    <button class="btn btn-primary btn-sm" style="margin-top:24rpx;" bindtap="goProfile">去建档</button>
+  </view>
+</view>
+
+<!-- 高风险警告弹窗 -->
+<view class="modal-mask" wx:if="{{showRiskWarning}}" bindtap="closeRiskWarning">
+  <view class="modal-card risk-modal" catchtap="">
+    <view class="modal-icon">🚨</view>
+    <view class="modal-title risk-title">紧急提醒：请立即联系兽医</view>
+    <view class="modal-body-text">
+      <text>您记录的症状（包含"</text><text class="risk-keyword">{{riskKeyword}}</text><text>"）可能表明宠物存在严重的健康风险，甚至危及生命。</text>
+      <text>\n\n本应用无法诊断或治疗疾病。请立即采取以下行动：\n</text>
+      <text>1. 立即联系您的兽医或最近的24小时宠物医院\n</text>
+      <text>2. 不要等待观察，不要自行用药\n</text>
+      <text>3. 本应用今天的饮食与保健品建议已自动暂停</text>
+    </view>
+    <button class="btn btn-danger btn-block" bindtap="confirmRisk" loading="{{submitting}}">我知道了，已联系兽医</button>
+  </view>
+</view>
+
+<toast id="toast" />

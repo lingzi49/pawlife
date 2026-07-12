@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/record/record",
+    "pages/profile/profile",
+    "pages/timeline/timeline",
+    "pages/diet/diet",
+    "pages/supplement/supplement"
+  ],
+  "window": {
+    "navigationBarTitleText": "PawLife",
+    "navigationBarBackgroundColor": "#FF8A00",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#FFF7E6",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "color": "#A0846C",
+    "selectedColor": "#FF8A00",
+    "backgroundColor": "#FFFDF8",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "🐾 今日"
+      },
+      {
+        "pagePath": "pages/record/record",
+        "text": "📝 记录"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "🐶 我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

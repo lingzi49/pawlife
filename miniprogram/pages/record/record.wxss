@@ -1,0 +1,71 @@
+/* 记录事件页样式 */
+
+.picker-display {
+  padding: 18rpx 20rpx;
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #FFFAF2;
+  font-size: 28rpx;
+  color: var(--brown);
+}
+
+/* 症状标签组 */
+.symptom-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+.symptom-tag {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 20rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 32rpx;
+  background: #FFFAF2;
+  font-size: 26rpx;
+  color: var(--brown);
+  transition: all 0.15s;
+}
+.symptom-tag:active { border-color: var(--orange); background: var(--orange-light); }
+.symptom-tag checkbox { transform: scale(0.8); }
+
+/* 反馈区 */
+.reaction-box {
+  background: var(--orange-light);
+  border-radius: var(--radius-sm);
+  padding: 24rpx;
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: var(--brown);
+  line-height: 1.8;
+  white-space: pre-line;
+  border-left: 6rpx solid var(--orange);
+  display: none;
+}
+.reaction-text { white-space: pre-line; line-height: 1.8; }
+
+/* 风险警告弹窗 */
+.modal-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(90, 58, 42, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+}
+.modal-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  max-width: 600rpx;
+  width: 100%;
+}
+.risk-modal { border: 4rpx solid #D94A4A; }
+.modal-icon { font-size: 80rpx; text-align: center; margin-bottom: 16rpx; }
+.modal-title { font-size: 34rpx; font-weight: 700; text-align: center; margin-bottom: 20rpx; }
+.risk-title { color: #D94A4A; }
+.modal-body-text { font-size: 26rpx; color: var(--brown); line-height: 1.8; margin-bottom: 24rpx; }
+.risk-keyword { color: #D94A4A; font-weight: 700; }

@@ -1,0 +1,89 @@
+<!-- 首页：今日汪汪 + 档案摘要 -->
+<navbar title="PawLife" showBack="{{false}}" />
+
+<view class="container" style="padding-top:20rpx;">
+
+  <!-- 欢迎条 -->
+  <view class="greeting-bar" wx:if="{{hasDog}}">
+    <view class="greeting-avatar" bindtap="goProfile">
+      <image wx:if="{{dog.photo}}" src="{{baseUrl}}/photos/{{dog.photo}}" mode="aspectFill" class="avatar-img" />
+      <text wx:else class="avatar-emoji">{{breedIcon}}</text>
+    </view>
+    <view class="greeting-bubble">
+      <text class="greeting-text">{{greeting}}</text>
+    </view>
+  </view>
+
+  <!-- 今日汪汪卡片 -->
+  <view class="today-card {{urgent ? 'urgent' : ''}}">
+    <view class="today-card-left">
+      <text class="today-card-icon">{{urgent ? '🚨' : '💡'}}</text>
+    </view>
+    <view class="today-card-body">
+      <view class="today-card-title">今日汪汪 <text class="today-subtitle">— 快把耳朵凑过来…</text></view>
+      <view class="today-card-text {{urgent ? 'urgent' : ''}}">
+        <text wx:if="{{loading}}">汪汪正在赶来...</text>
+        <text wx:else>{{todayMessage}}</text>
+      </view>
+      <view class="today-card-action" wx:if="{{pendingActions > 0 || supplementCount > 0}}">
+        <text class="action-badge" wx:if="{{pendingActions > 0}}">{{pendingActions}} 项待办</text>
+        <text class="action-badge supplement" wx:if="{{supplementCount > 0}}">{{supplementCount}} 项保健品</text>
+      </view>
+    </view>
+    <view class="today-card-refresh" bindtap="refreshToday">
+      <text>↻</text>
+    </view>
+  </view>
+
+  <!-- 暂停提示 -->
+  <view class="suspend-banner" wx:if="{{suspended}}">
+    <text>🚨 今日饮食与保健品建议已暂停。请优先联系兽医！</text>
+    <button class="btn btn-sm btn-outline" bindtap="restoreSuggestions">已联系兽医，恢复建议</button>
+  </view>
+
+  <!-- 档案卡片 -->
+  <view class="profile-card">
+    <view class="profile-card-header" bindtap="goProfile">
+      <text class="profile-mood-emoji">📋</text>
+      <text class="profile-card-title-text">我的小档案</text>
+      <text class="profile-card-arrow">→</text>
+    </view>
+    <view class="profile-card-body" wx:if="{{hasDog}}">
+      <view class="profile-info-item">🐶 <text class="info-strong">{{dog.name}}</text></view>
+      <view class="profile-info-item">🐕 {{dog.breed}}</view>
+      <view class="profile-info-item">🎂 {{dogAge}}</view>
+      <view class="profile-info-item">⚖️ {{dog.weight || '未填写'}}</view>
+    </view>
+    <view class="profile-card-empty" wx:else>
+      <view class="empty-icon">🐶</view>
+      <view class="empty-text">主人，快帮我建个档案吧～</view>
+      <button class="btn btn-primary btn-sm" bindtap="goProfile">🐾 建立档案</button>
+    </view>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="feature-grid">
+    <view class="feature-card" bindtap="goRecord">
+      <text class="feature-icon">📝</text>
+      <text class="feature-label">记录事件</text>
+      <text class="feature-subtitle">疫苗、驱虫、洗澡澡</text>
+    </view>
+    <view class="feature-card" bindtap="goDiet">
+      <text class="feature-icon">🍖</text>
+      <text class="feature-label">饮食宝典</text>
+      <text class="feature-subtitle">吃什么，怎么吃</text>
+    </view>
+    <view class="feature-card" bindtap="goTimeline">
+      <text class="feature-icon">📅</text>
+      <text class="feature-label">大事记</text>
+      <text class="feature-subtitle">我的汪生纪念册</text>
+    </view>
+    <view class="feature-card" bindtap="goSupplement">
+      <text class="feature-icon">🛡️</text>
+      <text class="feature-label">保健品小队</text>
+      <text class="feature-subtitle">我的营养护盾</text>
+    </view>
+  </view>
+</view>
+
+<toast id="toast" />

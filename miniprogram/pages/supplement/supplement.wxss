@@ -1,0 +1,57 @@
+/* 保健品页面样式 */
+
+.supplement-header {
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--brown);
+  margin-bottom: 24rpx;
+}
+
+/* 保健品卡片 */
+.supplement-card {
+  display: flex;
+  gap: 14rpx;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  border: 1rpx solid var(--border);
+  align-items: flex-start;
+}
+
+.supplement-priority {
+  padding-top: 6rpx;
+  flex-shrink: 0;
+}
+.priority-dot {
+  display: block;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+}
+.priority-dot.urgent { background: #D94A4A; }
+.priority-dot.normal { background: #6B9B37; }
+
+.supplement-body { flex: 1; min-width: 0; }
+
+.supplement-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--brown);
+  margin-bottom: 8rpx;
+}
+
+.supplement-reason {
+  font-size: 26rpx;
+  color: var(--brown-light);
+  margin-bottom: 6rpx;
+  line-height: 1.6;
+}
+
+.supplement-woof {
+  font-size: 24rpx;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.5;
+}

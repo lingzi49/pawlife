@@ -1,9 +1,0 @@
-__pycache__/
-*.py[cod]
-*.db
-photos/
-.git/
-.claude/
-.vscode/
-stdout.txt
-stderr.txt

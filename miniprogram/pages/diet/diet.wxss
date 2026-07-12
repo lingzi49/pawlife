@@ -1,0 +1,166 @@
+/* 饮食宝典页面样式 */
+
+/* 食谱卡片 */
+.recipe-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 32rpx 28rpx;
+  border: 1rpx solid var(--border);
+}
+
+/* 装饰标题 */
+.recipe-deco {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 16rpx;
+}
+.recipe-deco-line {
+  flex: 1;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, var(--orange), transparent);
+}
+.recipe-deco-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--brown);
+  white-space: nowrap;
+}
+
+.recipe-date {
+  font-size: 24rpx;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 8rpx;
+}
+.recipe-meal-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--orange);
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+/* 食材清单 */
+.recipe-items {
+  margin-bottom: 20rpx;
+}
+.recipe-item {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: #FFFAF2;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10rpx;
+  gap: 12rpx;
+}
+.recipe-item:last-child { margin-bottom: 0; }
+.recipe-item-emoji { font-size: 36rpx; }
+.recipe-item-name {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--brown);
+}
+.recipe-item-weight {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--brown-light);
+}
+
+/* 总重 */
+.recipe-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14rpx 20rpx;
+  background: #F5F0E8;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20rpx;
+  font-size: 28rpx;
+  color: var(--brown);
+}
+.recipe-total-weight {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+/* 营养标签 */
+.recipe-nutrition {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+  flex-wrap: wrap;
+}
+.nut-tag {
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 8rpx 18rpx;
+  border-radius: 20rpx;
+}
+.nut-tag.protein { background: #FFE0E0; color: #C62828; }
+.nut-tag.fat { background: #FFF3E0; color: #E65100; }
+.nut-tag.carbs { background: #E8F5E9; color: #2E7D32; }
+
+.recipe-cooking-tip {
+  font-size: 26rpx;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
+/* 警告标签 */
+.recipe-warning {
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 12rpx 16rpx;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12rpx;
+  line-height: 1.6;
+}
+.recipe-warning.allergy { background: #FFF3E0; color: #E65100; }
+.recipe-warning.hypo { background: #FFEBEE; color: #C62828; }
+.recipe-warning.disease { background: #E3F2FD; color: #1565C0; }
+
+/* 辅助信息区 */
+.recipe-side-info {
+  margin-top: 8rpx;
+}
+.side-section {
+  padding: 14rpx 0;
+  border-top: 1rpx solid var(--border);
+}
+.side-section:first-child { border-top: none; }
+.side-label {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--brown);
+  margin-bottom: 6rpx;
+}
+.side-text {
+  font-size: 26rpx;
+  color: var(--brown-light);
+  line-height: 1.7;
+}
+.side-heartfelt {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #FFF8E1;
+  border-radius: var(--radius-sm);
+  font-size: 26rpx;
+  color: var(--brown-light);
+  text-align: center;
+  font-style: italic;
+}
+
+/* 内联免责声明 */
+.disclaimer-inline {
+  margin-top: 20rpx;
+  padding: 14rpx 18rpx;
+  background: #F5F5F5;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: #9E9E9E;
+  line-height: 1.6;
+}

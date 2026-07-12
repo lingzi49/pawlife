@@ -1,0 +1,45 @@
+<!-- 大事记（时间线）页面 -->
+<navbar title="大事记" />
+
+<view class="container">
+  <block wx:if="{{hasDog}}">
+    <view class="timeline-header">{{dogName}} 的汪生纪念册 🐾</view>
+
+    <!-- 分类筛选 -->
+    <view class="filter-bar">
+      <text class="tl-filter {{activeFilter === '全部' ? 'active' : ''}}" bindtap="setFilter" data-type="全部">全部</text>
+      <text class="tl-filter {{activeFilter === '疫苗' ? 'active' : ''}}" bindtap="setFilter" data-type="疫苗">💉 疫苗</text>
+      <text class="tl-filter {{activeFilter === '驱虫' ? 'active' : ''}}" bindtap="setFilter" data-type="驱虫">💊 驱虫</text>
+      <text class="tl-filter {{activeFilter === '发情' ? 'active' : ''}}" bindtap="setFilter" data-type="发情">💕 发情</text>
+      <text class="tl-filter {{activeFilter === '异常行为' ? 'active' : ''}}" bindtap="setFilter" data-type="异常行为">⚠️ 异常</text>
+      <text class="tl-filter {{activeFilter === '洗澡澡' ? 'active' : ''}}" bindtap="setFilter" data-type="洗澡澡">🛁 洗澡</text>
+    </view>
+
+    <!-- 时间线列表 -->
+    <view wx:if="{{filteredEvents.length > 0}}">
+      <view class="timeline-item" wx:for="{{filteredEvents}}" wx:key="id">
+        <view class="timeline-icon-bg {{item.type}}">
+          <text>{{item.typeIcon}}</text>
+        </view>
+        <view class="timeline-body">
+          <view class="timeline-date">{{item.date}}</view>
+          <view class="timeline-type">{{item.type}}</view>
+          <view class="timeline-desc" wx:if="{{item.description}}">{{item.description}}</view>
+          <view class="timeline-risk" wx:if="{{item.high_risk}}">🚨 高风险症状：{{item.risk_keyword}}</view>
+        </view>
+        <view class="timeline-line"></view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <view style="font-size:64rpx;">📅</view>
+      <view>{{activeFilter === '全部' ? '还没有事件记录，去记录页添加吧～' : '没有' + activeFilter + '相关的记录～'}}</view>
+    </view>
+  </block>
+
+  <view class="empty-state" wx:if="{{!hasDog}}">
+    <view style="font-size:80rpx;">🐶</view>
+    <view>主人，请先在"我的"页创建狗狗档案哦～</view>
+  </view>
+</view>

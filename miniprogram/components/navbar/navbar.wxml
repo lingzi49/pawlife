@@ -1,0 +1,16 @@
+<!-- 自定义导航栏 -->
+<view class="navbar" style="padding-top: {{statusBarHeight}}px;">
+  <view class="navbar-content" style="height: {{navBarHeight}}px;">
+    <!-- 返回按钮 -->
+    <view class="navbar-back" wx:if="{{showBack}}" bindtap="goBack">
+      <text>← 返回</text>
+    </view>
+    <view class="navbar-back-placeholder" wx:if="{{!showBack}}"></view>
+    <!-- 标题 -->
+    <view class="navbar-title">{{title}}</view>
+    <!-- 右侧占位 -->
+    <view class="navbar-right"></view>
+  </view>
+</view>
+<!-- 占位高度 -->
+<view style="height: {{totalHeight}}px;"></view>
