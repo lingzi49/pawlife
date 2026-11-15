@@ -5,6 +5,7 @@ photos/
 *.egg-info/
 .env
 .claude/
+.vscode/
 stdout.txt
 stderr.txt
 # 项目文档/报告，不上传版本库
