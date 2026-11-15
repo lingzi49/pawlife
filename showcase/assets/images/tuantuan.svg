@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="柯基团团插画头像">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF4E4"/>
+      <stop offset="1" stop-color="#FFDFB8"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E89A4A"/>
+      <stop offset="1" stop-color="#D77F30"/>
+    </linearGradient>
+    <linearGradient id="ear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E08B3B"/>
+      <stop offset="1" stop-color="#C96F26"/>
+    </linearGradient>
+    <clipPath id="round">
+      <circle cx="120" cy="120" r="120"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="240" height="240" fill="url(#bg)"/>
+    <circle cx="120" cy="120" r="114" fill="none" stroke="#F3D3A8" stroke-width="2" opacity="0.75"/>
+    <circle cx="196" cy="58" r="26" fill="#FFF0D9" opacity="0.55"/>
+    <circle cx="44" cy="188" r="18" fill="#FFF0D9" opacity="0.5"/>
+
+    <!-- 耳朵 -->
+    <path d="M62 96C53 74 49 49 54 36c2-8 11-9 17-3l30 28Z" fill="url(#ear)"/>
+    <path d="M178 96c9-22 13-47 8-60-2-8-11-9-17-3l-30 28Z" fill="url(#ear)"/>
+    <path d="M66 88C59 70 57 53 60 44c1-4 5-5 8-2l22 21Z" fill="#F7C4A0"/>
+    <path d="M174 88c7-18 9-35 6-44-1-4-5-5-8-2l-22 21Z" fill="#F7C4A0"/>
+
+    <!-- 头部 -->
+    <ellipse cx="120" cy="118" rx="73" ry="66" fill="url(#fur)"/>
+
+    <!-- 白色额纹 -->
+    <path d="M120 54c10 0 15 8 14 20-1 11-5 16-4 27 1 8 5 12 5 18 0 8-6 13-15 13s-15-5-15-13c0-6 4-10 5-18 1-11-3-16-4-27-1-12 4-20 14-20Z" fill="#FFF6E8"/>
+
+    <!-- 面颊 -->
+    <ellipse cx="120" cy="150" rx="46" ry="31" fill="#FFF6E8"/>
+    <path d="M62 132c8-5 17-3 20 3 2 5-2 10-9 10-8 1-15-4-16-8-1-2 1-4 5-5Z" fill="#FFF6E8" opacity="0.9"/>
+    <path d="M178 132c-8-5-17-3-20 3-2 5 2 10 9 10 8 1 15-4 16-8 1-2-1-4-5-5Z" fill="#FFF6E8" opacity="0.9"/>
+
+    <!-- 眼睛 -->
+    <ellipse cx="93" cy="111" rx="7.2" ry="8.8" fill="#3A2A20"/>
+    <ellipse cx="147" cy="111" rx="7.2" ry="8.8" fill="#3A2A20"/>
+    <circle cx="95.4" cy="107.6" r="2.4" fill="#FFFFFF"/>
+    <circle cx="149.4" cy="107.6" r="2.4" fill="#FFFFFF"/>
+
+    <!-- 腮红 -->
+    <ellipse cx="80" cy="137" rx="9.5" ry="5.2" fill="#F3A16B" opacity="0.5"/>
+    <ellipse cx="160" cy="137" rx="9.5" ry="5.2" fill="#F3A16B" opacity="0.5"/>
+
+    <!-- 鼻子与嘴 -->
+    <path d="M120 133c-7.5 0-13.5 4.2-11.6 10.2 1.6 5 6.6 8.3 11.6 8.3s10-3.3 11.6-8.3c1.9-6-4.1-10.2-11.6-10.2Z" fill="#3A2A20"/>
+    <ellipse cx="116.4" cy="138.4" rx="2.6" ry="1.5" fill="#6B5446" opacity="0.85"/>
+    <path d="M120 151.5v6" fill="none" stroke="#3A2A20" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M120 157.5c-3.4 5.4-9.4 5.7-12.8 2M120 157.5c3.4 5.4 9.4 5.7 12.8 2" fill="none" stroke="#3A2A20" stroke-width="2.4" stroke-linecap="round"/>
+
+    <!-- 舌头 -->
+    <ellipse cx="120" cy="168.5" rx="7.4" ry="5" fill="#EE8D88"/>
+    <path d="M120 165.5v6" stroke="#D96F6C" stroke-width="1.4" stroke-linecap="round"/>
+
+    <!-- 胸口 -->
+    <path d="M76 190c12 14 28 20 44 20s32-6 44-20v42H76Z" fill="#FFF6E8"/>
+    <path d="M76 190c12 14 28 20 44 20s32-6 44-20" fill="none" stroke="#F0D9BC" stroke-width="2"/>
+
+    <!-- 项圈 -->
+    <path d="M82 196c12 6 25 9 38 9s26-3 38-9" fill="none" stroke="#3E8C8C" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="120" cy="207" r="6.5" fill="#F2B04C"/>
+    <circle cx="120" cy="207" r="2.6" fill="#C8872C"/>
+  </g>
+</svg>

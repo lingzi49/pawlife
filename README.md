@@ -16,17 +16,43 @@ PawLife 是一款基于宠物档案的健康管理 Web 应用。它不追求“�
 
 ## 项目预览
 
-目前仓库中没有现成截图资产，因此以下为占位区域，后续补充真实界面截图后可直接替换：
+以下截图来自仓库内的独立静态展示版 `showcase/`，由浏览器实际渲染，数据为虚构演示数据：
 
-- Dashboard / 首页看板
-- 宠物数字档案
-- 营养计算与个性化建议
-- 健康事件时间线
-- 体重趋势图
-- 照护提醒中心
-- 签到与勋章系统
+| 首页 Dashboard | 营养管理 |
+| --- | --- |
+| ![首页 Dashboard](showcase/assets/images/preview-dashboard.png) | ![营养管理](showcase/assets/images/preview-nutrition.png) |
 
-> 需要补充：真实页面截图（至少 4–6 张），用于展示首页、档案、饮食建议和健康时间线。
+| 健康趋势 | 成长与激励 |
+| --- | --- |
+| ![健康趋势](showcase/assets/images/preview-trends.png) | ![成长与激励](showcase/assets/images/preview-growth.png) |
+
+展示版还包含宠物档案、健康事件时间线与照护提醒中心，均可在浏览器中直接交互。
+
+---
+
+## 在线展示版（静态前端）
+
+仓库新增了独立的静态展示层 `showcase/`，无需启动 Python 后端即可在浏览器中体验完整的产品界面与核心规则：
+
+- 完整桌面 Dashboard：首页、宠物档案、营养管理、健康记录、健康趋势、照护提醒、成长与激励；
+- 可交互：签到、每日任务、健康检查、新增健康事件、高风险关键词拦截、体重 / BCS 记录、档案编辑、提醒处理、勋章解锁；
+- 与后端规则保持一致：RER / DER 计算、过敏源过滤、提醒周期与勋章判定均移植自 `pawlife_web.py`；
+- 演示宠物「团团」及全部记录均为虚构数据，操作只保存在浏览器 `localStorage`，不会写入原 SQLite 数据库。
+
+本地预览：
+
+```bash
+python -m http.server 8080 -d showcase
+# 打开 http://localhost:8080/
+```
+
+GitHub Pages：
+
+- 工作流：`.github/workflows/deploy-showcase.yml`，仅发布 `showcase/` 目录，不运行 Python 后端；
+- 首次部署需在仓库 Settings → Pages 中将 Source 设为 **GitHub Actions**；
+- 部署目标地址为 `https://lingzi49.github.io/pawlife/`。本次交付尚未实际触发 GitHub Actions，链接是否可用请以仓库 Actions 与 Pages 状态为准。
+
+> 展示版是独立的产品演示层，用于呈现界面与规则效果，不代表已经连接生产数据库的线上系统。
 
 ---
 
@@ -263,6 +289,14 @@ PawLife 运行时不是一个“实时 AI 诊断系统”。真正运行的核�
 ├── docs/
 │   └── AUDIT.md
 ├── PawLife_兽医知识审查报告.md
+├── showcase/                  # 独立静态展示版（GitHub Pages）
+│   ├── index.html
+│   ├── css/
+│   ├── js/
+│   └── assets/
+├── .github/
+│   └── workflows/
+│       └── deploy-showcase.yml
 ├── miniprogram/
 │   ├── app.js
 │   ├── app.json
