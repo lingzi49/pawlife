@@ -49,8 +49,9 @@ python -m http.server 8080 -d showcase
 GitHub Pages：
 
 - 工作流：`.github/workflows/deploy-showcase.yml`，仅发布 `showcase/` 目录，不运行 Python 后端；
-- 首次部署需在仓库 Settings → Pages 中将 Source 设为 **GitHub Actions**；
-- 部署目标地址为 `https://lingzi49.github.io/pawlife/`。本次交付尚未实际触发 GitHub Actions，链接是否可用请以仓库 Actions 与 Pages 状态为准。
+- 首次部署需由仓库管理员在 Settings → Pages 中将 Source 设为 **GitHub Actions**（`GITHUB_TOKEN` 无法自动创建 Pages 站点）；
+- 启用后，可在 Actions 中手动运行 “Deploy Showcase to GitHub Pages”，或再次推送 `showcase/` 变更；
+- 部署目标地址为 `https://lingzi49.github.io/pawlife/`。当前仓库 Pages 尚未启用，该地址还不可访问。
 
 > 展示版是独立的产品演示层，用于呈现界面与规则效果，不代表已经连接生产数据库的线上系统。
 

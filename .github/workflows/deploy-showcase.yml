@@ -1,3 +1,5 @@
+# 首次部署前，请在仓库 Settings -> Pages 将 Source 设为 "GitHub Actions"。
+# GITHUB_TOKEN 无权自动创建 Pages 站点，因此该工作流不尝试自动启用。
 name: Deploy Showcase to GitHub Pages
 
 on:
@@ -29,8 +31,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload static showcase
         uses: actions/upload-pages-artifact@v3
