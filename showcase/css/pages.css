@@ -1,0 +1,793 @@
+/* PawLife 展示版 — 页面级样式（首页、成长日记、身材管理、伙食搭配、提醒、勋章、补给） */
+
+/* ==================== 首页 ==================== */
+.today-dashboard {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 16px 8px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+.today-dashboard-main { display: flex; align-items: center; gap: 12px; }
+
+.today-dashboard-info { flex: 1; min-width: 0; font-size: 0.95em; color: var(--brown); line-height: 1.55; }
+.td-name { color: var(--brown); }
+.td-name b { color: var(--brown); font-weight: 700; }
+.td-recent { font-size: 0.82em; color: var(--muted); display: block; margin-top: 1px; }
+.td-reminder { font-size: 0.8em; color: var(--red); display: block; margin-top: 1px; }
+
+.today-dashboard-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.td-paw {
+  cursor: pointer;
+  font-size: 0.85em;
+  color: var(--brown-light);
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: var(--orange-light);
+  transition: transform 0.2s;
+  white-space: nowrap;
+  border: none;
+}
+.td-paw:hover { transform: scale(1.05); }
+
+.td-streak { font-size: 0.82em; color: var(--brown-light); white-space: nowrap; }
+.td-streak b { color: var(--orange-dark); }
+
+.td-checkin-btn {
+  font-size: 0.82em;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  padding: 5px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--orange), #FFB74D);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(255, 138, 0, 0.18);
+  border: none;
+  font-family: inherit;
+}
+.td-checkin-btn:hover { transform: scale(1.05); box-shadow: 0 3px 12px rgba(255, 138, 0, 0.3); }
+
+.today-pending {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.88em;
+  font-weight: 600;
+  color: var(--orange-dark);
+  line-height: 1.5;
+}
+.pending-count {
+  display: inline-block;
+  background: var(--orange);
+  color: #fff;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  font-size: 0.85em;
+  margin-right: 5px;
+}
+
+/* 今日健康检查 */
+.daily-check-card {
+  background: linear-gradient(135deg, #FFF8F0, #FFFDF7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 16px 10px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.daily-check-card.is-done { background: linear-gradient(135deg, #F4FAF0, #FFFDF7); }
+.daily-check-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.daily-check-icon { font-size: 1.3em; }
+.daily-check-title { font-size: 1em; font-weight: 700; color: var(--brown); }
+.daily-check-badge {
+  margin-left: auto;
+  font-size: 0.72em;
+  font-weight: 600;
+  background: var(--green);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.daily-check-desc { font-size: 0.83em; color: var(--brown-light); line-height: 1.6; margin-bottom: 10px; }
+.pet-name-inline { font-weight: 700; color: var(--brown); }
+.daily-check-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.daily-check-completed {
+  text-align: center;
+  padding: 9px 10px;
+  margin-bottom: 6px;
+  background: #E8F5E9;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  font-weight: 600;
+  color: #2E7D32;
+}
+.daily-check-note { font-size: 0.72em; color: var(--muted); text-align: center; }
+
+/* 功能入口 */
+.quick-record-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+.qr-span-2 { grid-column: span 2; }
+.quick-record-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  user-select: none;
+  position: relative;
+  font-family: inherit;
+}
+.quick-record-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(100, 60, 20, 0.1);
+  border-color: var(--orange);
+}
+.quick-record-card:active { transform: scale(0.97); }
+.qr-icon { font-size: 1.6em; display: block; margin-bottom: 4px; }
+.qr-label { font-size: 0.9em; font-weight: 700; color: var(--brown); display: block; }
+.qr-hint { font-size: 0.72em; color: var(--muted); display: block; margin-top: 2px; }
+
+.quick-record-grid-sm {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.quick-record-card-sm {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 6px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  user-select: none;
+  position: relative;
+  font-family: inherit;
+}
+.quick-record-card-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(100, 60, 20, 0.1);
+  border-color: var(--orange);
+}
+.quick-record-card-sm:active { transform: scale(0.97); }
+.qr-icon-sm { font-size: 1.5em; display: block; margin-bottom: 3px; }
+.qr-label-sm { font-size: 0.82em; font-weight: 700; color: var(--brown); display: block; }
+.quick-record-card-sm .qr-hint { font-size: 0.66em; }
+
+/* 健康档案卡 */
+.health-profile-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-top: 12px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.hp-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.hp-icon { font-size: 1.5em; }
+.hp-name { font-size: 1.02em; font-weight: 700; color: var(--brown); flex: 1; min-width: 0; }
+.hp-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.hp-tag {
+  font-size: 0.75em;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hp-tag-good { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
+.hp-tag-warn { background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80; }
+.hp-tag-info { background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; }
+.hp-tag-missing { background: transparent; color: var(--muted); border: 1px dashed var(--border); cursor: pointer; }
+.hp-tag-missing:hover { border-color: var(--orange); color: var(--orange); }
+.hp-range-note { font-size: 0.74em; color: var(--muted); margin-bottom: 4px; }
+.hp-action-row {
+  font-size: 0.8em;
+  color: var(--orange);
+  margin-top: 6px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--orange-light);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hp-action-row:hover { background: #FFE0B2; }
+
+/* 成长记录 */
+.section-label {
+  font-size: 0.92em;
+  font-weight: 700;
+  color: var(--brown-light);
+  margin: 4px 0 8px;
+}
+.growth-compact { margin-bottom: 12px; }
+.growth-badges-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.growth-badge-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #FFFDF7;
+  border: 1.5px solid #A67B5B;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #5D3A1A;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.growth-badge-mini.locked { filter: grayscale(100%); opacity: 0.45; border-style: dashed; border-color: #CCC; }
+.growth-latest { font-size: 0.78em; color: var(--muted); margin-bottom: 4px; }
+.growth-more-link {
+  display: block;
+  text-align: center;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--orange);
+  cursor: pointer;
+  padding: 8px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  width: 100%;
+}
+.growth-more-link:hover { opacity: 0.75; }
+.growth-empty {
+  text-align: center;
+  padding: 20px 12px;
+  background: #FDFBF7;
+  border-radius: var(--radius);
+  border: 2px dashed var(--border);
+}
+.growth-empty-icon { font-size: 2.2em; margin-bottom: 8px; }
+.growth-empty-text { font-size: 0.92em; font-weight: 600; color: var(--brown); margin-bottom: 4px; }
+.growth-empty-hint { font-size: 0.8em; color: var(--muted); line-height: 1.5; }
+
+.home-footer-actions { text-align: right; margin-top: 6px; }
+.footer-dot { color: var(--muted); margin: 0 2px; }
+
+/* ==================== 成长日记 ==================== */
+.event-form-actions { text-align: right; margin-top: 6px; }
+.reaction-box {
+  display: none;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #FFF8ED, #FFF0D9);
+  border: 1px dashed var(--orange);
+  font-size: 0.86em;
+  color: var(--brown);
+  line-height: 1.65;
+}
+.reaction-box.show { display: block; }
+
+.timeline-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tl-filter {
+  padding: 5px 11px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background: #F5F0E8;
+  color: var(--brown-light);
+  font-size: 0.78em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+}
+.tl-filter:hover { background: #EDE4D5; }
+.tl-filter.active { background: #FFF; color: var(--brown); border-color: #E0C8A0; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+
+.timeline { display: flex; flex-direction: column; }
+.timeline-item { display: grid; grid-template-columns: 42px 26px minmax(0, 1fr); gap: 8px; padding-bottom: 12px; }
+.timeline-date { text-align: right; padding-top: 12px; }
+.timeline-date b { display: block; font-size: 1.1em; font-weight: 700; line-height: 1.1; color: var(--brown); }
+.timeline-date span { display: block; font-size: 0.68em; color: var(--muted); }
+.timeline-line { position: relative; display: flex; justify-content: center; }
+.timeline-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: -12px;
+  width: 1px;
+  background: var(--border);
+}
+.timeline-item:last-child .timeline-line::before { display: none; }
+.timeline-dot {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  margin-top: 9px;
+  border-radius: 8px;
+  background: #FFF8EE;
+  display: grid;
+  place-items: center;
+  font-size: 0.78em;
+  border: 1px solid var(--border);
+  z-index: 1;
+}
+.timeline-dot.vaccine { background: #FCEDD9; }
+.timeline-dot.deworm { background: #EEF4E8; }
+.timeline-dot.bath { background: #EAF2F5; }
+.timeline-dot.abnormal { background: #FAEAE6; }
+.timeline-dot.heat { background: #FBEAF0; }
+.timeline-dot.daily { background: #EEF4E8; }
+.timeline-dot.weight { background: #F5EFE6; }
+.timeline-card {
+  background: #FFFDF9;
+  border: 1px solid #F3E9DB;
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  transition: border-color 0.18s;
+}
+.timeline-card:hover { border-color: #E5D3BD; }
+.timeline-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.timeline-top h3 { font-size: 0.9em; font-weight: 700; }
+.timeline-card > p { font-size: 0.8em; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.timeline-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.72em;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.timeline-actions { display: flex; gap: 0; }
+.timeline-actions .btn { padding: 3px 6px; font-size: 0.78em; text-decoration: none; }
+
+/* ==================== 身材管理 ==================== */
+.chart-range { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 4px; }
+.chart-range button {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: #FFFDF9;
+  color: var(--brown-light);
+  font-size: 0.78em;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.chart-range button.active { background: var(--orange-light); border-color: var(--orange); color: var(--orange-dark); }
+
+.weight-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 8px;
+  background: #FFFBF5;
+  border-radius: var(--radius-sm);
+  border: 1px solid #F5E8D6;
+}
+.weight-stats-row > div { text-align: center; min-width: 0; }
+.weight-stats-row span { display: block; font-size: 0.68em; color: var(--muted); }
+.weight-stats-row b { display: block; font-size: 0.95em; color: var(--brown); }
+.weight-stats-row b small { font-size: 0.68em; color: var(--muted); font-weight: 500; margin-left: 1px; }
+
+.weight-trend-alert {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: #FFF8E1;
+  border: 1px solid #F0DFB8;
+  color: #856404;
+  font-size: 0.78em;
+  line-height: 1.6;
+}
+
+.weight-inline-form { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
+.weight-inline-form .weight-input-wrap { flex: 1; min-width: 0; }
+.weight-date { flex: 0 0 118px; font-size: 0.82em; padding: 9px 6px; }
+.weight-inline-form .btn { flex: 0 0 auto; padding: 10px 14px; font-size: 0.86em; }
+.weight-frequency-hint { margin-top: 7px; font-size: 0.72em; color: var(--muted); }
+
+.bcs-intro { font-size: 0.82em; color: var(--brown-light); line-height: 1.6; margin-bottom: 10px; }
+.bcs-state-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.bcs-state-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #FFFAF2;
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+}
+.bcs-state-card:hover { border-color: #F4A460; background: #FFF8F0; }
+.bcs-state-card.selected { border-color: #F4A460; background: #FFF3E4; box-shadow: 0 0 0 3px rgba(244, 164, 96, 0.15); }
+.bcs-icon { font-size: 1.7em; line-height: 1.1; }
+.bcs-label { font-weight: 700; font-size: 0.92em; color: #4A3428; }
+.bcs-hint { font-size: 0.7em; color: #6B5748; line-height: 1.35; }
+.bcs-range { font-size: 0.66em; color: #B8956E; margin-top: 2px; }
+.bcs-tip { font-size: 0.78em; color: var(--brown-light); padding: 7px 10px; background: #FFFBF5; border-radius: 8px; border: 1px solid #F5E8D6; }
+
+.weight-log-head, .weight-log-row {
+  display: grid;
+  grid-template-columns: 1.1fr 0.8fr 0.8fr 0.5fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 4px;
+}
+.weight-log-head { font-size: 0.7em; color: var(--muted); border-bottom: 1px solid #F5EDE2; }
+.weight-log-row { border-bottom: 1px solid #F5EDE2; font-size: 0.82em; }
+.weight-log-row:last-child { border-bottom: none; }
+.wl-date { color: var(--muted); }
+.wl-weight { font-weight: 700; color: var(--brown); }
+.wl-diff { color: var(--brown-light); }
+.weight-log-row .btn { justify-self: end; padding: 2px 4px; font-size: 0.76em; text-decoration: none; }
+
+/* ==================== 伙食搭配 ==================== */
+.diet-card { padding: 18px; }
+.recipe-wrap { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); gap: 18px; }
+.recipe-main { min-width: 0; }
+.recipe-deco { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.recipe-deco-line { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, #E8CDA8 0 4px, transparent 4px 8px); }
+.recipe-deco-title { font-size: 0.88em; font-weight: 700; color: var(--orange-dark); white-space: nowrap; }
+.recipe-date { text-align: center; font-size: 0.76em; color: var(--muted); margin-bottom: 4px; }
+.recipe-meal-name { text-align: center; font-size: 1.15em; font-weight: 700; color: var(--brown); margin-bottom: 12px; }
+.recipe-items { border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); padding: 6px 0; margin-bottom: 10px; }
+.recipe-item { display: flex; align-items: baseline; gap: 6px; padding: 5px 2px; font-size: 0.9em; }
+.recipe-item-name { color: var(--brown); font-weight: 600; white-space: nowrap; }
+.recipe-item-dots { flex: 1; border-bottom: 1px dotted #DCC9B0; transform: translateY(-3px); }
+.recipe-item-weight { font-weight: 700; color: var(--orange-dark); white-space: nowrap; }
+.recipe-total { display: flex; justify-content: space-between; align-items: center; padding: 6px 2px; font-size: 0.9em; }
+.recipe-total-label { color: var(--brown-light); font-weight: 600; }
+.recipe-total-weight { font-size: 1.15em; font-weight: 800; color: var(--orange-dark); }
+.recipe-nutrition { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.nut-tag { font-size: 0.74em; font-weight: 600; padding: 3px 8px; border-radius: 12px; }
+.nut-tag-protein { background: #FDECEA; color: #C0392B; }
+.nut-tag-fat { background: #FFF5E0; color: #B8860B; }
+.nut-tag-carbs { background: #E8F0FE; color: #2471A3; }
+.recipe-cooking-tip { text-align: center; font-size: 0.76em; color: var(--muted); padding: 6px; background: #FFFBF5; border-radius: 8px; }
+.diet-note { text-align: center; font-size: 0.76em; margin-top: 6px; line-height: 1.5; }
+.diet-note.alert { color: #C0392B; }
+.diet-note.warm { color: #B45A18; background: #FFF3E0; border-radius: 8px; padding: 6px 10px; }
+.diet-note.good { color: #2E7D32; }
+.diet-note.muted { color: var(--brown-light); }
+.diet-actions { display: flex; justify-content: center; margin-top: 10px; }
+.diet-basis { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 8px; }
+.diet-basis summary {
+  cursor: pointer;
+  font-size: 0.78em;
+  color: var(--orange-dark);
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #FFFBF5;
+  list-style: none;
+}
+.diet-basis summary::-webkit-details-marker { display: none; }
+.diet-basis summary:hover { background: var(--orange-light); }
+.diet-basis-detail { margin-top: 6px; }
+.diet-basis-row { display: flex; justify-content: space-between; padding: 5px 8px; font-size: 0.78em; border-bottom: 1px dotted #F0E4D4; }
+.diet-basis-row:last-child { border-bottom: none; }
+.diet-basis-row span:first-child { color: var(--muted); }
+.diet-basis-row span:last-child { color: var(--brown); font-weight: 600; }
+.diet-disclaimer {
+  margin-top: 12px;
+  font-size: 0.72em;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 6px 8px;
+  background: #FFFBF5;
+  border-radius: 6px;
+  border: 1px solid #FFE0C0;
+}
+.recipe-side {
+  background: #FFFBF5;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  border: 1px solid #F5E8D6;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.side-section { border-bottom: 1px dotted var(--border); padding-bottom: 10px; }
+.side-section:last-of-type { border-bottom: none; padding-bottom: 0; }
+.side-label { font-size: 0.8em; font-weight: 700; color: var(--brown); margin-bottom: 4px; }
+.side-text { font-size: 0.76em; color: var(--brown-light); line-height: 1.65; }
+.side-text.breed-tip { color: var(--orange-dark); margin-bottom: 4px; }
+.side-heartfelt {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 0.78em;
+  color: var(--brown-light);
+  line-height: 1.65;
+  border-top: 1px dotted var(--border);
+  font-style: italic;
+}
+.diet-empty { font-size: 0.9em; color: var(--brown-light); line-height: 1.8; text-align: center; padding: 8px 4px; }
+.supp-suspended { font-size: 0.9em; color: var(--red); line-height: 1.75; }
+.suspended-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+
+/* ==================== 贴心闹钟 ==================== */
+.reminders-intro {
+  font-size: 0.86em;
+  color: var(--brown-light);
+  padding: 0 0 10px 0;
+  margin-bottom: 6px;
+  line-height: 1.55;
+}
+.reminder-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s;
+}
+.reminder-card.reminder-urgent { border-color: #FF8A80; background: #FFF7F6; }
+.reminder-card.is-done { opacity: 0.72; background: #FBFAF6; }
+.reminder-icon { font-size: 1.5em; flex-shrink: 0; }
+.reminder-body { flex: 1; min-width: 0; }
+.reminder-title { font-weight: 700; color: var(--brown); margin-bottom: 2px; font-size: 0.95em; }
+.reminder-desc { font-size: 0.82em; color: var(--brown-light); line-height: 1.55; }
+.reminder-days { font-size: 0.95em; font-weight: 800; color: var(--orange-dark); margin-top: 4px; letter-spacing: 0.02em; }
+.reminder-actions-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.reminder-action {
+  display: inline-block;
+  font-size: 0.8em;
+  color: var(--orange);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+}
+.reminder-action:hover { text-decoration: underline; }
+.reminder-action.muted { color: var(--muted); font-weight: 500; }
+.reminders-done-title { font-size: 0.82em; color: var(--muted); font-weight: 700; margin: 16px 0 8px; }
+
+/* ==================== 高光时刻 ==================== */
+.badge-emotion-card {
+  background: linear-gradient(135deg, #FFF8EF 0%, #FEF0DD 100%);
+  border-radius: 20px;
+  padding: 20px 18px;
+  margin-bottom: 14px;
+  border: 1px solid #F0DCC0;
+  box-shadow: 0 2px 12px rgba(180, 140, 100, 0.08);
+}
+.badge-emotion-inner { display: flex; align-items: center; gap: 16px; }
+.badge-emotion-left { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+.badge-emotion-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #F0D0A0;
+  background: #FBE8D0;
+}
+.badge-emotion-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.badge-emotion-name { font-size: 0.88em; font-weight: 700; color: var(--brown); }
+.badge-emotion-days { font-size: 0.7em; color: var(--brown-light); }
+.badge-emotion-right { flex: 1; min-width: 0; }
+.badge-emotion-count { font-size: 0.95em; font-weight: 700; color: #C98A4B; margin-bottom: 3px; }
+.badge-emotion-text { font-size: 0.82em; color: #8B6E5A; line-height: 1.6; }
+.badge-next-line { font-size: 0.72em; color: var(--brown-light); margin: 8px 0 4px; }
+
+.daily-task-card { background: linear-gradient(135deg, #FFFDF8, #FFF8EE); }
+.daily-task-text {
+  font-size: 0.9em;
+  line-height: 1.7;
+  color: var(--brown);
+  padding: 10px 12px;
+  background: #FFFBF5;
+  border-radius: 10px;
+  border-left: 3px solid var(--orange);
+  margin-top: 6px;
+}
+.daily-task-actions { margin-top: 10px; }
+.daily-task-note { font-size: 0.72em; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+.badge-story-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+.badge-story-tab {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  background: #F5F0E8;
+  color: var(--brown-light);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.badge-story-tab:hover { background: #EDE4D5; }
+.badge-story-tab.active { background: #FFF; color: var(--brown); border-color: #E0C8A0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04); }
+
+.badge-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.badge-memento {
+  background: #FFFDF9;
+  border-radius: 16px;
+  padding: 16px 10px 12px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  transition: all 0.25s;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  position: relative;
+  font-family: inherit;
+}
+.badge-memento:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(180, 140, 80, 0.15); }
+.badge-memento.unlocked { background: #FFFDF5; }
+.badge-memento.locked { background: #FCFAF7; }
+.badge-memento.locked .badge-memento-icon { opacity: 0.5; }
+.badge-memento-photo-area { position: relative; display: inline-block; margin: 0 auto 8px; }
+.badge-memento-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #D4A853;
+  box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.22), 0 0 14px rgba(200, 150, 60, 0.15);
+}
+.badge-memento.locked .badge-memento-icon { border-color: #D8CFC0; box-shadow: 0 0 0 3px rgba(200, 190, 175, 0.15); }
+.badge-memento-icon-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9em;
+  background: linear-gradient(135deg, #FFF8E1, #FFE082);
+}
+.badge-memento.locked .badge-memento-icon-placeholder { background: #F3F1ED; }
+.badge-memento-pin {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFD54F, #FFA000);
+  border: 2px solid #FFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65em;
+  z-index: 2;
+}
+.badge-memento-name { font-size: 0.82em; font-weight: 700; color: var(--brown); margin-bottom: 2px; display: block; }
+.badge-memento.locked .badge-memento-name { color: #B8A494; }
+.badge-memento-date { font-size: 0.66em; color: #B8A494; display: block; }
+.badge-memento.locked .badge-memento-date { color: #C8BCAA; font-style: italic; }
+.badge-detail-body { text-align: center; }
+.badge-detail-condition { font-size: 0.9em; color: var(--brown-light); line-height: 1.7; }
+
+/* ==================== 元气补给 ==================== */
+.supp-alert-item {
+  display: flex;
+  gap: 11px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.supp-alert-item:last-of-type { border-bottom: none; }
+.supp-alert-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--orange-light);
+  display: grid;
+  place-items: center;
+  font-size: 1.15em;
+  flex-shrink: 0;
+}
+.supp-alert-body { flex: 1; min-width: 0; }
+.supp-alert-name { font-size: 0.92em; font-weight: 700; color: var(--brown); margin-bottom: 2px; }
+.supp-alert-reason { font-size: 0.78em; color: var(--orange-dark); line-height: 1.6; }
+.supp-alert-woof { font-size: 0.78em; color: var(--brown-light); line-height: 1.65; margin-top: 3px; }
+.supp-disclaimer {
+  margin-top: 12px;
+  font-size: 0.74em;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 6px 8px;
+  background: #FFFBF5;
+  border-radius: 6px;
+  border: 1px solid #FFE0C0;
+}
+.supp-empty-state { text-align: center; padding: 6px 4px; }
+.supp-empty-icon { font-size: 2.4em; margin-bottom: 6px; }
+.supp-empty-title { font-size: 0.98em; font-weight: 700; color: var(--brown); margin-bottom: 4px; }
+.supp-empty-desc { font-size: 0.82em; color: var(--muted); line-height: 1.6; }
+.supp-empty-checklist {
+  text-align: left;
+  margin: 12px auto;
+  max-width: 340px;
+  padding: 10px 14px;
+  background: #FFFBF5;
+  border-radius: 10px;
+  font-size: 0.78em;
+  color: var(--brown-light);
+  line-height: 1.8;
+  border: 1px solid #F5E8D6;
+}
+.supp-empty-hints { font-size: 0.76em; color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
+.supp-empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 680px) {
+  .recipe-wrap { grid-template-columns: 1fr; gap: 12px; }
+  .recipe-side { gap: 10px; }
+}
+
+@media (max-width: 560px) {
+  .today-dashboard { padding: 10px 12px 7px; }
+  .today-dashboard-main { gap: 9px; }
+  .today-dashboard-meta { gap: 4px; }
+  .td-name { font-size: 0.92em; }
+  .td-paw, .td-streak, .td-checkin-btn { font-size: 0.74em; padding: 4px 8px; }
+  .daily-check-card { padding: 12px 13px 9px; }
+  .quick-record-grid { gap: 5px; }
+  .quick-record-grid-sm { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .quick-record-card { padding: 12px 8px; }
+  .quick-record-card-sm { padding: 11px 6px; }
+  .health-profile-card { padding: 14px; }
+  .hp-tags { gap: 3px; }
+  .hp-tag { font-size: 0.7em; }
+  .weight-inline-form { flex-wrap: wrap; }
+  .weight-inline-form .weight-input-wrap { flex: 1 1 100%; }
+  .weight-date { flex: 1 1 46%; }
+  .weight-inline-form .btn { flex: 1 1 46%; }
+  .weight-stats-row { grid-template-columns: 1fr 1fr; gap: 8px 4px; }
+  .bcs-state-cards { gap: 5px; }
+  .bcs-state-card { padding: 8px 4px; }
+  .bcs-hint { font-size: 0.66em; }
+  .badge-emotion-inner { gap: 12px; }
+  .badge-wall { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 9px; }
+  .badge-memento { padding: 13px 6px 10px; }
+  .badge-memento-icon { width: 58px; height: 58px; }
+  .timeline-item { grid-template-columns: 36px 22px minmax(0, 1fr); gap: 6px; }
+  .timeline-dot { width: 22px; height: 22px; font-size: 0.68em; }
+  .timeline-card { padding: 10px 11px; }
+  .recipe-deco-title { font-size: 0.8em; }
+  .recipe-meal-name { font-size: 1.05em; }
+  .diet-card { padding: 14px; }
+  .reminder-card { padding: 12px 13px; }
+  .reminder-icon { font-size: 1.3em; }
+  .reminder-title { font-size: 0.9em; }
+  .reminder-desc { font-size: 0.78em; }
+  .weight-log-head, .weight-log-row { grid-template-columns: 1fr 0.7fr 0.7fr 0.45fr; gap: 4px; font-size: 0.76em; }
+  .today-pending { font-size: 0.82em; }
+}

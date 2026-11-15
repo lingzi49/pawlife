@@ -312,7 +312,7 @@ window.PawData = (function () {
       nextEventId: 115,
       nextWeightId: 213,
       nextBcsId: 304,
-      ui: { recipeIndex: 0 }
+      ui: { recipeIndex: 0, badgeTab: 'all', weightRange: 90 }
     };
     return state;
   }
@@ -323,7 +323,9 @@ window.PawData = (function () {
   }
 
   function ensureIds(state) {
-    if (!state.ui) state.ui = { recipeIndex: 0 };
+    if (!state.ui) state.ui = { recipeIndex: 0, badgeTab: 'all', weightRange: 90 };
+    if (!state.ui.badgeTab) state.ui.badgeTab = 'all';
+    if (!state.ui.weightRange) state.ui.weightRange = 90;
     if (!state.bcsLogs) state.bcsLogs = [];
     if (!state.badges) state.badges = [];
     if (!state.pointsLog) state.pointsLog = [];
@@ -907,6 +909,182 @@ window.PawData = (function () {
     return { newBadges: newBadges };
   }
 
+  function updateEvent(state, id, payload) {
+    var event = state.events.filter(function (e) { return e.id === id; })[0];
+    if (!event) return { error: '找不到这条记录' };
+    event.type = payload.type;
+    event.date = payload.date;
+    event.detail = payload.detail || {};
+    if (payload.highRisk) {
+      event.high_risk = 1;
+      event.risk_keyword = payload.riskKeyword || '';
+      state.suspendedUntil = todayISO();
+      state.riskLogs.unshift({
+        date: event.date,
+        keyword: payload.riskKeyword || '',
+        text: (payload.detail && payload.detail.note) || '',
+        highRisk: true
+      });
+    } else {
+      delete event.high_risk;
+      delete event.risk_keyword;
+    }
+    var lastBath = state.events.filter(function (e) { return e.type === '洗澡澡'; })
+      .sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+    state.pet.lastBathDate = lastBath ? lastBath.date : null;
+    var newBadges = checkBadges(state);
+    return { event: event, newBadges: newBadges };
+  }
+
+  function unlockedBadge(state, name) {
+    return state.badges.filter(function (b) { return b.name === name; })[0] || null;
+  }
+
+  function nextBadgeInfo(state) {
+    var vc = state.events.filter(function (e) { return e.type === '疫苗'; }).length;
+    var dc = state.events.filter(function (e) { return e.type === '驱虫'; }).length;
+    var taskCount = state.checkin.taskDates.filter(function (d) { return d >= daysAgoISO(30); }).length;
+    var bcsIdeal = state.bcsLogs.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; })
+      .slice(0, 3).filter(function (l) { return l.state === 'ideal'; }).length;
+    var guardians = BADGES.filter(function (b) { return b.category === '守护者'; });
+    var unlockedGuardians = guardians.filter(function (b) { return unlockedBadge(state, b.name); }).length;
+    var candidates = [
+      { name: '免疫完成', have: vc, need: 3, unit: '次疫苗' },
+      { name: '驱虫达标', have: dc, need: 6, unit: '次驱虫' },
+      { name: '洁齿坚持', have: taskCount, need: 15, unit: '次任务' },
+      { name: '体态管理', have: bcsIdeal, need: 3, unit: '次理想 BCS' },
+      { name: '健康大满贯', have: unlockedGuardians, need: guardians.length, unit: '枚守护者勋章' }
+    ].filter(function (c) { return !unlockedBadge(state, c.name); });
+    if (!candidates.length) return null;
+    candidates.sort(function (a, b) { return (b.have / b.need) - (a.have / a.need); });
+    var best = candidates[0];
+    var def = BADGES.filter(function (b) { return b.name === best.name; })[0];
+    best.def = def;
+    best.pct = Math.min(100, Math.round(best.have / best.need * 100));
+    return best;
+  }
+
+  function daysTogether(state) {
+    if (!state.pet.createdAt) return 0;
+    return Math.max(0, diffDays(todayISO(), state.pet.createdAt));
+  }
+
+  /* ---------------- 保健品规则（移植自后端） ---------------- */
+  function calcSupplements(state) {
+    var pet = state.pet;
+    var months = ageMonths(pet.birthday);
+    var stage = ageStage(pet.birthday, pet.breed);
+    var kg = parseWeight(pet.weight);
+    var abnormal = state.events.filter(function (e) { return e.type === '异常行为'; });
+    var scratch = 0, vomit = 0, diarrhea = 0;
+    abnormal.forEach(function (e) {
+      var d = e.detail || {};
+      var text = ((d.symptoms || []).join(' ') + ' ' + (d.note || '')).toLowerCase();
+      if (text.indexOf('抓痒') !== -1 || text.indexOf('挠') !== -1 || text.indexOf('scratch') !== -1) scratch++;
+      if (text.indexOf('吐') !== -1 || text.indexOf('vomit') !== -1) vomit++;
+      if (text.indexOf('拉稀') !== -1 || text.indexOf('腹泻') !== -1 || text.indexOf('diarrhea') !== -1) diarrhea++;
+    });
+    var diseases = (pet.diseases || '').toLowerCase();
+    var allergies = pet.allergies || '';
+    var allergiesLower = allergies.toLowerCase();
+    var hasFish = ['鱼', '海鲜', '三文鱼', '鳕鱼'].some(function (k) { return allergiesLower.indexOf(k) !== -1; });
+    var merged = {};
+
+    function add(key, name, reason, woof, priority, icon) {
+      if (hasFish && name.indexOf('鱼油') !== -1) return;
+      if (!merged[key]) {
+        merged[key] = { key: key, name: name, reasons: [reason], woof: woof, priority: priority, icon: icon };
+      } else {
+        var item = merged[key];
+        if (item.reasons.indexOf(reason) === -1) item.reasons.push(reason);
+        if (priority < item.priority) {
+          item.priority = priority;
+          item.name = name;
+          item.woof = woof;
+        }
+      }
+    }
+
+    var shortBody = ['柯基', '法斗', '英斗', '京巴', '西施'];
+    var curly = ['贵宾', '泰迪', '比熊', '马尔济斯', '迷你雪纳瑞', '约克夏'];
+    var skinBreeds = ['法斗', '英斗', '巴哥', '京巴', '西施'];
+    var eyeBreeds = ['巴哥', '京巴', '西施', '比熊', '马尔济斯'];
+    var heartBreeds = ['杜宾', '金毛', '拉布拉多', '德牧', '德国牧羊犬', '大丹犬'];
+    function breedIn(list) {
+      return pet.breed && list.some(function (b) { return pet.breed.indexOf(b) !== -1; });
+    }
+
+    if (stage === '老年犬') {
+      add('joint', '关节保护 + 抗氧化剂（葡萄糖胺、维生素E、辅酶Q10）', '老年关节退化、免疫力下降，需综合养护', '我步入黄金老年啦，关节需要好好养护，再来点抗氧化的东西，让我老得慢一点～', 1, '🦴');
+      add('multi', '综合维生素/矿物质', '老年犬营养吸收能力下降，建议综合补充', '年纪大了，吃饭吸收不如从前，综合营养能帮我补齐缺口～', 2, '💊');
+    }
+    if (breedIn(shortBody) && months >= 12) {
+      add('joint', '关节保护（葡萄糖胺 + 软骨素，尤其脊椎）', '短腿长身犬种易患椎间盘疾病', '我们短腿家族腰背容易受伤，日常的关节保健品可不能停哦。', 1, '🦴');
+    }
+    if (kg !== null && kg >= 30 && months >= 12) {
+      add('joint', '关节保护（葡萄糖胺 + 软骨素）', '体重对关节压力大，需额外保护', '我太壮啦，关节天天扛着我跑，得补补！', 2, '🦴');
+    }
+    if (stage === '幼犬') {
+      add('multi', '综合维生素/矿物质（钙磷比均衡）', '生长发育期需均衡营养（若吃市售全价狗粮则通常无需额外补充）', '我正在长身体～如果主人给我吃的是自制狗饭，可以加一点综合营养粉；如果吃的是市售全价狗粮，一般不需要额外补哦，具体听兽医的！', 1, '💊');
+    }
+    if (scratch >= 2) {
+      add('skin', 'Omega-3 鱼油', '曾有多次抓痒记录，皮肤干燥或过敏瘙痒', '我之前老是挠痒痒，鱼油可以让我的皮肤不那么干痒，毛也亮！', 2, '🐟');
+    }
+    if (vomit >= 1 || diarrhea >= 1) {
+      add('digest', '益生菌', '曾有呕吐/腹泻记录，需调理肠胃', '上次吐/拉肚子好难受，每天吃点益生菌，肚子会舒服很多～', 2, '🥛');
+    }
+    if (breedIn(curly) && months >= 6) {
+      add('beauty', '美毛产品（卵磷脂 + 生物素）', '卷毛易打结、皮肤脆弱，需养护毛发', '我这一身卷毛要勤打理，吃点美毛的，梳毛时就不会那么疼啦。', 3, '✨');
+    }
+    if (pet.gender === 'female' && pet.neutered !== '是' && months >= 36) {
+      add('urinary', '蔓越莓提取物（泌尿/生殖健康）', '未绝育母犬随年龄增长，子宫蓄脓和泌尿道感染风险增加', '主人，我还没绝育，年纪大了尿尿的地方容易不舒服，给我吃点蔓越莓保护一下吧～', 2, '💧');
+    }
+    if (pet.gender === 'male' && pet.neutered !== '是' && months >= 36) {
+      add('prostate', '南瓜籽提取物（前列腺保健）', '未绝育公犬易出现前列腺肥大等问题', '主人，我们没绝育的男孩子，前列腺要早点保养，南瓜籽就很好哦～', 2, '🌰');
+    }
+    if (breedIn(skinBreeds) && months >= 6) {
+      add('skin', '皮肤养护（Omega-3 鱼油 + 维生素E）', '皮肤皱褶多/敏感品种易患皮炎，需养护皮肤屏障', '我们这种皮肤敏感的狗狗，Omega-3 加维E能让皮肤抵抗力更强，减少痒痒和红疹～', 2, '🐟');
+    }
+    if (breedIn(eyeBreeds) && months >= 12) {
+      add('eye', '眼部护理（叶黄素 + 维生素A + Omega-3）', '眼球突出/大眼睛品种易患角膜损伤、干眼症和泪痕问题', '我的大眼睛虽然萌萌的但也脆弱，容易干涩和流眼泪。叶黄素和维A能保护我的视力和角膜健康哦～', 2, '👁️');
+    }
+    if (breedIn(heartBreeds) && months >= 24) {
+      add('heart', '心脏保健（辅酶Q10 + 牛磺酸 + 左旋肉碱）', '大型/巨型犬扩张型心肌病(DCM)风险较高，需心脏保养', '像我们这样的大型犬，心脏要扛起整个身体很辛苦的。辅酶Q10和牛磺酸能帮心脏跳得更有力～', 1, '❤️');
+    }
+
+    if (/关节|髋|髌骨|跛行|arthritis/.test(diseases)) {
+      add('joint', '关节保护（葡萄糖胺 + 软骨素）', '档案中有关节相关病史，需特别关注关节养护', '主人，我以前的关节不舒服过，日常养护可不能偷懒哦～', 1, '🦴');
+    }
+    if (/心脏|心|heart|dcm/.test(diseases)) {
+      add('heart', '心脏保护（辅酶Q10 + 牛磺酸 + 左旋肉碱）', '档案中有心脏相关病史，需关注心脏健康', '主人，保护心脏要从日常做起，辅酶Q10对我很重要～', 1, '❤️');
+    }
+    if (/皮肤|过敏|皮炎|红疹|痒|allergy|skin/.test(diseases)) {
+      add('skin', '皮肤养护（Omega-3 鱼油 + 维生素E）', '档案中有皮肤或过敏相关病史', '主人，皮肤问题容易反复，Omega-3 能让我的皮肤更健康～', 2, '🐟');
+    }
+    if (/胰腺|pancreatitis/.test(diseases)) {
+      add('digest', '消化养护（益生菌 + 消化酶）', '档案中有胰腺相关病史，需低脂饮食和消化支持', '主人，我的胰腺需要特别呵护，益生菌和低脂饮食对我很重要～', 1, '🥛');
+    }
+    if (/眼|白内障|青光眼|视力/.test(diseases)) {
+      add('eye', '眼部护理（叶黄素 + 维生素A + Omega-3）', '档案中有眼部相关病史，需加强眼部保健', '主人，保护眼睛从现在开始，叶黄素对我很重要～', 2, '👁️');
+    }
+
+    var month = new Date().getMonth() + 1;
+    if (month >= 6 && month <= 8 || month === 12 || month === 1 || month === 2) {
+      if (merged.joint) merged.joint.priority -= 0.5;
+      if (merged.skin) merged.skin.priority -= 0.5;
+    }
+
+    var list = Object.keys(merged).map(function (k) { return merged[k]; })
+      .sort(function (a, b) { return a.priority - b.priority; });
+
+    list.forEach(function (item) {
+      item.reasonText = item.reasons.join('；');
+      item.woofFull = item.woof + '（参考剂量请遵兽医指导，不可用人用保健品替代）';
+      if (allergies) item.woofFull += ' ⚠️ 选择产品时请避开：' + allergies + '。';
+    });
+    return list;
+  }
+
   function latestWeight(state) {
     var logs = state.weightLogs.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
     return logs.length ? logs[logs.length - 1] : null;
@@ -998,8 +1176,13 @@ window.PawData = (function () {
     recordDailyCheck: recordDailyCheck,
     scanHighRisk: scanHighRisk,
     addEvent: addEvent,
+    updateEvent: updateEvent,
     addWeight: addWeight,
     recordBCS: recordBCS,
+    calcSupplements: calcSupplements,
+    unlockedBadge: unlockedBadge,
+    nextBadgeInfo: nextBadgeInfo,
+    daysTogether: daysTogether,
     latestWeight: latestWeight,
     latestBCS: latestBCS,
     weightStats: weightStats,

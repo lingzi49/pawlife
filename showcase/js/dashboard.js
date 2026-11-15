@@ -1,17 +1,10 @@
-/* PawLife 展示版 — 首页仪表盘与宠物档案 */
+/* PawLife 展示版 — 首页与档案编辑 */
 (function () {
   'use strict';
 
   var A = window.PawApp;
   var D = window.PawData;
   var esc = A.esc;
-
-  function daysText(n) {
-    if (n === null || n === undefined) return '待补充';
-    if (n < 0) return '已逾期 ' + Math.abs(n) + ' 天';
-    if (n === 0) return '今天到期';
-    return n + ' 天后';
-  }
 
   function relativeDate(iso) {
     var diff = D.diffDays(D.todayISO(), iso);
@@ -22,383 +15,214 @@
     return (d.getMonth() + 1) + '月' + d.getDate() + '日';
   }
 
-  function greeting() {
-    var h = new Date().getHours();
-    if (h < 6) return '夜深了';
-    if (h < 11) return '早上好';
-    if (h < 14) return '中午好';
-    if (h < 18) return '下午好';
-    return '晚上好';
+  function daysText(n) {
+    if (n === null || n === undefined) return '待补充';
+    if (n < 0) return '已逾期 ' + Math.abs(n) + ' 天';
+    if (n === 0) return '今天到期';
+    return n + ' 天后';
   }
 
-  function reminderStatus(status) {
-    var map = {
-      overdue: ['status-overdue', '需处理'],
-      soon: ['status-soon', '即将到期'],
-      ok: ['status-ok', '状态正常'],
-      none: ['status-none', '待补充']
-    };
-    return map[status] || map.none;
+  function latestEvent(state) {
+    var list = state.events.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    return list[0] || null;
   }
 
-  function renderHero(state) {
+  function careReminders(state) {
+    return D.buildReminders(state).filter(function (r) { return !r.done && r.status !== 'none'; });
+  }
+
+  function pendingCount(state) {
+    var count = D.dailyCheckDone(state) ? 0 : 1;
+    count += careReminders(state).filter(function (r) { return r.status === 'overdue' || r.status === 'soon'; }).length;
+    return count;
+  }
+
+  function renderTodayCard(state) {
     var pet = state.pet;
+    var latest = latestEvent(state);
+    var reminders = careReminders(state).sort(function (a, b) {
+      var rank = { overdue: 0, soon: 1, ok: 2 };
+      return (rank[a.status] - rank[b.status]) || ((a.daysLeft || 0) - (b.daysLeft || 0));
+    });
+    var reminder = reminders[0];
+    var checked = D.checkedToday(state);
+    var pending = pendingCount(state);
+    var latestText = latest
+      ? '最近记录：' + (D.EVENT_META[latest.type] ? D.EVENT_META[latest.type].icon + ' ' + latest.type : latest.type) + ' · ' + relativeDate(latest.date)
+      : '还没有健康记录，去记录第一件事吧～';
+    return '<div class="today-dashboard">' +
+      '<div class="today-dashboard-main">' +
+        '<button type="button" class="today-avatar" data-action="openProfileModal" title="查看/编辑档案">' +
+          '<img src="assets/images/tuantuan.svg" alt="' + esc(pet.name) + ' 的演示头像" />' +
+        '</button>' +
+        '<div class="today-dashboard-info">' +
+          '<div class="td-name"><b>' + esc(pet.name) + '</b> · ' + esc(pet.breed) + ' · ' + esc(D.ageText(pet.birthday)) + ' · ' + esc(pet.weight) + 'kg</div>' +
+          '<span class="td-recent">' + esc(latestText) + '</span>' +
+          (reminder ? '<span class="td-reminder">⏰ ' + esc(reminder.title) + ' · ' + daysText(reminder.daysLeft) + '</span>' : '') +
+        '</div>' +
+        '<div class="today-dashboard-meta">' +
+          '<button type="button" class="td-paw" data-action="openPawHistory" title="查看爪印获取记录">🐾 <b>' + pet.pawPoints + '</b></button>' +
+          (checked
+            ? '<span class="td-streak" title="已连续签到 ' + D.currentStreak(state) + ' 天">🔥 <b>' + D.currentStreak(state) + '</b> 天</span>'
+            : '<button type="button" class="td-checkin-btn" data-action="checkinToday">📅 签到</button>') +
+        '</div>' +
+      '</div>' +
+      (pending > 0
+        ? '<div class="today-pending"><span class="pending-count">' + pending + '</span>' + esc(pet.name) + '今天有 <b>' + pending + '</b> 项健康任务待完成</div>'
+        : '') +
+    '</div>';
+  }
+
+  function renderDailyCheck(state) {
+    var done = D.dailyCheckDone(state);
+    var abnormal = state.events.filter(function (e) {
+      return e.type === '每日检查' && e.date === D.todayISO() && e.detail && e.detail.result === 'abnormal';
+    })[0];
+    return '<div class="daily-check-card' + (done ? ' is-done' : '') + '">' +
+      '<div class="daily-check-header">' +
+        '<span class="daily-check-icon">🩺</span>' +
+        '<span class="daily-check-title">今日健康检查</span>' +
+        (done ? '<span class="daily-check-badge">✅ 已完成</span>' : '') +
+      '</div>' +
+      '<div class="daily-check-body">' +
+        (done
+          ? '<div class="daily-check-completed">' + (abnormal ? '⚠️ 今日检查已完成 · 已记录异常' : '✅ 今日检查已完成 · ' + esc(state.pet.name) + '状态很好～') + '</div>'
+          : '<div class="daily-check-desc">用 1 分钟轻轻摸摸<span class="pet-name-inline">' + esc(state.pet.name) + '</span>的头部、背部、四肢和腹部，确认是否有硬块、红肿、脱毛或异常发热。</div>' +
+            '<div class="daily-check-actions">' +
+              '<button type="button" class="btn btn-check-ok" data-action="dailyCheckNormal">✅ 一切正常</button>' +
+              '<button type="button" class="btn btn-check-warn" data-action="openDailyCheckAbnormal">⚠️ 发现异常</button>' +
+            '</div>') +
+        '<div class="daily-check-note">完成后将自动记录到健康时间轴，并获得 1 枚爪印。</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderQuickGrid(state) {
+    var weight = D.latestWeight(state);
+    var reminders = careReminders(state);
+    var dueCount = reminders.filter(function (r) { return r.status === 'overdue' || r.status === 'soon'; }).length;
+    var suppCount = D.calcSupplements(state).length;
+    return '<div class="quick-record-grid">' +
+      '<button type="button" class="quick-record-card qr-span-2" data-nav="record">' +
+        '<span class="qr-icon">📝</span><span class="qr-label">记录健康事件</span>' +
+        '<span class="qr-hint">疫苗、驱虫、异常，事事有迹可循</span>' +
+      '</button>' +
+      '<button type="button" class="quick-record-card qr-span-2" data-nav="diet">' +
+        '<span class="qr-icon">🍖</span><span class="qr-label">饮食指导</span>' +
+        '<span class="qr-hint">按品种、年龄和体重量身推荐</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="quick-record-grid-sm">' +
+      '<button type="button" class="quick-record-card-sm" data-nav="weight">' +
+        '<span class="qr-icon-sm">⚖️</span><span class="qr-label-sm">体重管理</span>' +
+        '<span class="qr-hint">' + (weight ? weight.weight + 'kg · ' + relativeDate(weight.date) : '摸肋骨评估胖瘦') + '</span>' +
+      '</button>' +
+      '<button type="button" class="quick-record-card-sm" data-nav="reminders">' +
+        '<span class="qr-icon-sm">📅</span><span class="qr-label-sm">照护提醒</span>' +
+        '<span class="qr-hint">' + (dueCount ? dueCount + ' 项需关注' : '暂无紧急提醒') + '</span>' +
+      '</button>' +
+      '<button type="button" class="quick-record-card-sm" data-nav="badges">' +
+        '<span class="qr-icon-sm">🎖️</span><span class="qr-label-sm">健康成就</span>' +
+        '<span class="qr-hint">' + state.badges.length + ' / ' + D.BADGES.length + ' 枚勋章</span>' +
+      '</button>' +
+      '<button type="button" class="quick-record-card-sm" data-nav="supplement">' +
+        '<span class="qr-icon-sm">🛡️</span><span class="qr-label-sm">营养补充</span>' +
+        '<span class="qr-hint">' + (suppCount ? suppCount + ' 项建议' : '暂无额外补给') + '</span>' +
+      '</button>' +
+    '</div>';
+  }
+
+  function renderHealthProfile(state) {
+    var pet = state.pet;
+    var kg = D.parseWeight(pet.weight);
     var range = D.idealRange(pet.breed);
     var bcs = D.latestBCS(state);
-    var bcsText = bcs ? ({ ideal: '理想', heavy: '偏重', thin: '偏瘦' }[bcs.state] || '未评估') : '未评估';
-    var bcsClass = bcs ? (bcs.state === 'ideal' ? 'chip-green' : bcs.state === 'thin' ? 'chip-amber' : 'chip-red') : 'chip-muted';
-    return '' +
-      '<section class="hero">' +
-        '<div class="hero-glow" aria-hidden="true"></div>' +
-        '<div class="hero-mark" aria-hidden="true">' + A.paw('hero-paw') + '</div>' +
-        '<div class="hero-main">' +
-          '<div class="pet-avatar pet-avatar-lg">' +
-            '<img src="assets/images/tuantuan.svg" alt="' + esc(pet.name) + ' 的演示头像" />' +
-          '</div>' +
-          '<div class="hero-info">' +
-            '<div class="hero-eyebrow">' + greeting() + '，' + esc(pet.name) + '的主人</div>' +
-            '<h2>' + esc(pet.name) + '今天也要元气满满 <span class="hero-wave">🐾</span></h2>' +
-            '<div class="hero-tags">' +
-              '<span class="chip chip-brand">' + esc(pet.breed) + '</span>' +
-              '<span class="chip">' + esc(D.ageText(pet.birthday)) + '</span>' +
-              '<span class="chip">' + (pet.gender === 'male' ? '公犬' : '母犬') + '</span>' +
-              '<span class="chip">' + (pet.neutered === '是' ? '已绝育' : pet.neutered === '否' ? '未绝育' : '绝育未知') + '</span>' +
-            '</div>' +
-            '<div class="hero-vitals">' +
-              '<div class="vital"><span>当前体重</span><b>' + esc(pet.weight) + ' kg</b><em>' + (range ? '理想 ' + range[0] + '–' + range[1] + 'kg' : '暂无品种参考') + '</em></div>' +
-              '<div class="vital"><span>体况评分</span><b>' + bcsText + '</b><em>' + (bcs ? '最近 ' + relativeDate(bcs.date) : '去趋势页评估') + '</em></div>' +
-              '<div class="vital"><span>连续签到</span><b>' + D.currentStreak(state) + ' 天</b><em>累计 ' + pet.pawPoints + ' 枚爪印</em></div>' +
-            '</div>' +
-            '<div class="hero-actions">' +
-              '<button type="button" class="btn btn-primary" data-action="openEventModal">' + A.icon('plus') + '记录健康事件</button>' +
-              '<button type="button" class="btn btn-secondary" data-action="openWeightModal">' + A.icon('scale') + '更新体重</button>' +
-              '<span class="hero-bcs ' + bcsClass + '">BCS · ' + bcsText + '</span>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</section>';
-  }
+    var bcsLabel = bcs ? ({ ideal: '理想', thin: '偏瘦', heavy: '偏胖' }[bcs.state] || '未评估') : '未评估';
+    var tags = [];
 
-  function renderStats(state) {
-    var doneCount = (D.checkedToday(state) ? 1 : 0) + (D.dailyCheckDone(state) ? 1 : 0) + (D.taskDoneToday(state) ? 1 : 0);
-    var reminders = D.buildReminders(state);
-    var vaccine = reminders.filter(function (r) { return r.id === 'vaccine'; })[0];
-    var deworm = reminders.filter(function (r) { return r.id === 'deworm'; })[0];
-    var stats = D.weightStats(state.weightLogs, 30);
-    var change = stats ? stats.change : 0;
-    var changeClass = change > 0 ? 'trend-up' : change < 0 ? 'trend-down' : 'trend-flat';
-    return '' +
-      '<section class="stat-grid">' +
-        '<div class="stat-tile">' +
-          '<div class="stat-top"><span>今日待办</span><span class="stat-ico">' + A.icon('clipboard') + '</span></div>' +
-          '<div class="stat-value">' + doneCount + '<small>/ 3 已完成</small></div>' +
-          '<div class="progress" style="margin-top:12px"><i style="width:' + (doneCount / 3 * 100) + '%"></i></div>' +
-        '</div>' +
-        '<div class="stat-tile">' +
-          '<div class="stat-top"><span>下次疫苗</span><span class="stat-ico">💉</span></div>' +
-          '<div class="stat-value ' + (vaccine && vaccine.status === 'soon' ? 'text-amber' : '') + '">' + (vaccine ? daysText(vaccine.daysLeft) : '待补充') + '</div>' +
-          '<div class="stat-foot">' + (vaccine ? esc(vaccine.category) + ' · 按 365 天周期估算' : '还没有疫苗记录') + '</div>' +
-        '</div>' +
-        '<div class="stat-tile">' +
-          '<div class="stat-top"><span>下次驱虫</span><span class="stat-ico">🛡️</span></div>' +
-          '<div class="stat-value ' + (deworm && deworm.status === 'soon' ? 'text-amber' : '') + '">' + (deworm ? daysText(deworm.daysLeft) : '待补充') + '</div>' +
-          '<div class="stat-foot">' + (deworm ? '体内外驱虫 · 90 天间隔' : '还没有驱虫记录') + '</div>' +
-        '</div>' +
-        '<div class="stat-tile">' +
-          '<div class="stat-top"><span>近 30 天体重</span><span class="stat-ico">' + A.icon('chart') + '</span></div>' +
-          '<div class="stat-value">' + (stats ? stats.latest : esc(state.pet.weight)) + '<small> kg</small></div>' +
-          '<div class="stat-foot"><span class="' + changeClass + '">' + (change > 0 ? '↑ +' : change < 0 ? '↓ ' : '→ ') + change + ' kg</span> 较区间起点</div>' +
-        '</div>' +
-      '</section>';
-  }
-
-  function renderTasks() {
-    var items = [
-      {
-        id: 'checkin', title: '每日签到', desc: '签到可获得 1 枚爪印，保持记录习惯', done: D.checkedToday(A.state),
-        action: 'checkinToday', icon: '🐾'
-      },
-      {
-        id: 'daily', title: '今日健康检查', desc: '花 1 分钟摸摸头部、背部、四肢和腹部', done: D.dailyCheckDone(A.state),
-        action: 'openDailyCheck', icon: '🩺'
-      },
-      {
-        id: 'task', title: '每日小任务', desc: D.todayTask(A.state).task, done: D.taskDoneToday(A.state),
-        action: 'completeTodayTask', icon: '✅'
-      }
-    ];
-    var html = items.map(function (item) {
-      return '<div class="task-row' + (item.done ? ' is-done' : '') + '">' +
-        '<button type="button" class="task-check" data-action="' + item.action + '" aria-label="' + (item.done ? '已完成' : '完成') + esc(item.title) + '">' +
-          (item.done ? A.icon('check') : '') +
-        '</button>' +
-        '<div class="task-body"><b>' + item.icon + ' ' + esc(item.title) + '</b><span>' + esc(item.desc) + '</span></div>' +
-        (item.done
-          ? '<span class="status status-done">已完成</span>'
-          : '<button type="button" class="btn btn-soft btn-sm" data-action="' + item.action + '">去完成</button>') +
-      '</div>';
-    }).join('');
-    return '<div class="card">' +
-      '<div class="card-head"><div class="card-head-main">' +
-        '<div class="card-title">' + A.icon('check') + '今日照护任务</div>' +
-        '<div class="card-sub">完成每日小事，让健康管理变成习惯</div>' +
-      '</div><span class="chip chip-brand">' + [D.checkedToday(A.state), D.dailyCheckDone(A.state), D.taskDoneToday(A.state)].filter(Boolean).length + ' / 3</span></div>' +
-      '<div class="task-list">' + html + '</div>' +
-    '</div>';
-  }
-
-  function renderRemindersCard(state) {
-    var reminders = D.buildReminders(state)
-      .filter(function (r) { return !r.done && r.status !== 'none'; })
-      .sort(function (a, b) {
-        var rank = { overdue: 0, soon: 1, ok: 2 };
-        return (rank[a.status] - rank[b.status]) || ((a.daysLeft || 0) - (b.daysLeft || 0));
-      })
-      .slice(0, 4);
-    var body = reminders.length
-      ? reminders.map(function (r) {
-        var st = reminderStatus(r.status);
-        return '<button type="button" class="reminder-row" data-nav="' + r.actionPage + '">' +
-          '<span class="reminder-ico">' + r.icon + '</span>' +
-          '<span class="reminder-main"><b>' + esc(r.title) + '</b><em>' + esc(r.desc) + '</em></span>' +
-          '<span class="reminder-right"><span class="status ' + st[0] + '">' + daysText(r.daysLeft) + '</span>' + A.icon('arrow') + '</span>' +
-        '</button>';
-      }).join('')
-      : A.emptyState('✅', '当前没有待处理提醒', '疫苗、驱虫和洗澡计划都在正常范围内。');
-    return '<div class="card">' +
-      '<div class="card-head"><div class="card-head-main">' +
-        '<div class="card-title">' + A.icon('bell') + '待处理提醒</div>' +
-        '<div class="card-sub">基于健康记录自动计算</div>' +
-      '</div><a class="card-link" href="#/reminders" data-nav="reminders">全部提醒 ' + A.icon('arrow') + '</a></div>' +
-      '<div class="reminder-list">' + body + '</div>' +
-    '</div>';
-  }
-
-  function renderRecentEvents(state) {
-    var events = state.events.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 4);
-    var body = events.map(function (e) {
-      var meta = D.EVENT_META[e.type] || D.EVENT_META['每日检查'];
-      return '<div class="event-row">' +
-        '<span class="event-ico ' + meta.cls + '">' + meta.icon + '</span>' +
-        '<span class="event-main"><b>' + esc(meta.label) + (e.high_risk ? ' <span class="status status-overdue">高风险</span>' : '') + '</b>' +
-          '<em>' + esc(D.eventDetailText(e)) + '</em></span>' +
-        '<span class="event-date">' + relativeDate(e.date) + '</span>' +
-      '</div>';
-    }).join('');
-    return '<div class="card">' +
-      '<div class="card-head"><div class="card-head-main">' +
-        '<div class="card-title">' + A.icon('clipboard') + '最近健康事件</div>' +
-        '<div class="card-sub">按日期倒序展示最新记录</div>' +
-      '</div><a class="card-link" href="#/records" data-nav="records">查看时间线 ' + A.icon('arrow') + '</a></div>' +
-      '<div class="event-list">' + (body || A.emptyState('📝', '还没有健康记录', '从记录一次疫苗或体重开始。')) + '</div>' +
-    '</div>';
-  }
-
-  function renderMiniTrend(state) {
-    var stats = D.weightStats(state.weightLogs, 90);
-    var range = D.idealRange(state.pet.breed);
-    var chart = stats
-      ? A.weightChart(stats.logs, range, { rangeStart: D.daysAgoISO(90), height: 210, compact: true })
-      : A.emptyState('⚖️', '还没有体重数据', '记录第一次体重后，这里会出现 90 天趋势。');
-    return '<div class="card">' +
-      '<div class="card-head"><div class="card-head-main">' +
-        '<div class="card-title">' + A.icon('chart') + '体重趋势</div>' +
-        '<div class="card-sub">近 90 天 · 当前 ' + esc(state.pet.weight) + ' kg' + (range ? ' · 理想 ' + range[0] + '–' + range[1] + ' kg' : '') + '</div>' +
-      '</div><a class="card-link" href="#/trends" data-nav="trends">详细趋势 ' + A.icon('arrow') + '</a></div>' +
-      chart +
-    '</div>';
-  }
-
-  function renderQuickActions() {
-    var items = [
-      { label: '记录事件', hint: '疫苗 / 驱虫 / 异常', action: 'openEventModal', icon: '📝' },
-      { label: '更新体重', hint: '同步趋势与营养', action: 'openWeightModal', icon: '⚖️' },
-      { label: '营养方案', hint: 'RER / DER 与食谱', nav: 'nutrition', icon: '🍖' },
-      { label: '照护提醒', hint: '今日与即将到期', nav: 'reminders', icon: '📅' },
-      { label: '宠物档案', hint: '编辑基础资料', nav: 'profile', icon: '🐶' },
-      { label: '成长激励', hint: '签到 / 任务 / 勋章', nav: 'growth', icon: '🎖️' }
-    ];
-    return '<div class="card">' +
-      '<div class="card-head"><div class="card-head-main">' +
-        '<div class="card-title">' + A.icon('sparkles') + '快捷操作</div>' +
-        '<div class="card-sub">常用入口，一步直达</div>' +
-      '</div></div>' +
-      '<div class="quick-grid">' + items.map(function (it) {
-        return '<button type="button" class="quick-item" ' +
-          (it.nav ? 'data-nav="' + it.nav + '"' : 'data-action="' + it.action + '"') + '>' +
-          '<span class="quick-ico">' + it.icon + '</span>' +
-          '<span class="quick-text"><b>' + it.label + '</b><em>' + it.hint + '</em></span>' +
-        '</button>';
-      }).join('') + '</div>' +
-    '</div>';
-  }
-
-  function renderTip() {
-    var tip = D.tipOfToday();
-    var labels = {
-      food_danger: '饮食安全', food_good: '营养推荐', behavior: '行为解读',
-      care: '日常护理', season: '季节提醒', health_tip: '健康冷知识'
-    };
-    return '<div class="card tip-card">' +
-      '<div class="tip-badge">' + A.paw('tip-paw') + '</div>' +
-      '<div class="tip-label">' + (labels[tip.category] || '今日贴士') + '</div>' +
-      '<p class="tip-text">' + esc(tip.text) + '</p>' +
-      '<div class="tip-foot">每日轮换 · 来自内置照护知识库</div>' +
-    '</div>';
-  }
-
-  function renderDashboard(state) {
-    return '<div class="page-stack">' +
-      renderHero(state) +
-      renderStats(state) +
-      '<div class="dash-grid">' +
-        '<div class="dash-col">' +
-          renderTasks() +
-          renderMiniTrend(state) +
-          renderRecentEvents(state) +
-        '</div>' +
-        '<div class="dash-col">' +
-          renderRemindersCard(state) +
-          renderQuickActions() +
-          renderTip() +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  }
-
-  /* ---------------- 宠物档案 ---------------- */
-  function renderProfile(state) {
-    var pet = state.pet;
-    var range = D.idealRange(pet.breed);
-    var weight = D.parseWeight(pet.weight);
-    var allergies = (pet.allergies || '').split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
-    var diseases = (pet.diseases || '').split(/[,，]/).map(function (s) { return s.trim(); }).filter(Boolean);
-    var ageStage = D.ageStage(pet.birthday, pet.breed);
-    var events = state.events.length;
-    var weights = state.weightLogs.length;
-    var vaccines = state.events.filter(function (e) { return e.type === '疫苗'; }).length;
-    var deworm = state.events.filter(function (e) { return e.type === '驱虫'; }).length;
-    var rangePos = null;
-    if (range && weight !== null) {
-      rangePos = Math.max(0, Math.min(100, (weight - range[0] * 0.7) / (range[1] * 1.3 - range[0] * 0.7) * 100));
+    if (kg !== null && range) {
+      if (kg < range[0]) tags.push('<span class="hp-tag hp-tag-warn">⚖ ' + esc(pet.weight) + 'kg 偏轻</span>');
+      else if (kg > range[1]) tags.push('<span class="hp-tag hp-tag-warn">⚖ ' + esc(pet.weight) + 'kg 偏重</span>');
+      else tags.push('<span class="hp-tag hp-tag-good">⚖ ' + esc(pet.weight) + 'kg 正常</span>');
+    } else if (kg !== null) {
+      tags.push('<span class="hp-tag hp-tag-good">⚖ ' + esc(pet.weight) + 'kg</span>');
+    } else {
+      tags.push('<span class="hp-tag hp-tag-missing" data-action="openProfileModal">⚖ 未记录</span>');
     }
-    return '<div class="page-stack">' +
-      '<section class="profile-hero card">' +
-        '<div class="profile-head">' +
-          '<div class="pet-avatar pet-avatar-lg"><img src="assets/images/tuantuan.svg" alt="' + esc(pet.name) + ' 的演示头像" /></div>' +
-          '<div class="profile-title">' +
-            '<div class="hero-eyebrow">宠物数字档案</div>' +
-            '<h2>' + esc(pet.name) + '</h2>' +
-            '<div class="hero-tags">' +
-              '<span class="chip chip-brand">' + esc(pet.breed) + '</span>' +
-              '<span class="chip">' + esc(D.ageText(pet.birthday)) + ' · ' + ageStage + '</span>' +
-              '<span class="chip">' + (pet.gender === 'male' ? '公犬' : '母犬') + '</span>' +
-              '<span class="chip">' + (pet.neutered === '是' ? '已绝育' : pet.neutered === '否' ? '未绝育' : '绝育未知') + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div class="profile-actions">' +
-            '<button type="button" class="btn btn-primary btn-sm" data-action="openProfileModal">' + A.icon('edit') + '编辑档案</button>' +
-            '<button type="button" class="btn btn-secondary btn-sm" data-action="exportState">' + A.icon('download') + '导出演示数据</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="profile-summary">' +
-          '<div><span>档案创建</span><b>' + esc(pet.createdAt) + '</b></div>' +
-          '<div><span>到家日期</span><b>' + esc(pet.homeDate || '未填写') + '</b></div>' +
-          '<div><span>累计事件</span><b>' + events + ' 条</b></div>' +
-          '<div><span>体重记录</span><b>' + weights + ' 次</b></div>' +
-        '</div>' +
-      '</section>' +
 
-      '<div class="profile-grid">' +
-        '<div class="card">' +
-          '<div class="card-head"><div class="card-head-main">' +
-            '<div class="card-title">' + A.icon('profile') + '基础资料</div>' +
-            '<div class="card-sub">档案字段与原应用保持一致</div>' +
-          '</div></div>' +
-          '<dl class="detail-grid">' +
-            '<div><dt>名字</dt><dd>' + esc(pet.name) + '</dd></div>' +
-            '<div><dt>品种</dt><dd>' + esc(pet.breed) + '</dd></div>' +
-            '<div><dt>生日</dt><dd>' + esc(pet.birthday) + ' <span class="tiny muted">(' + esc(D.ageText(pet.birthday)) + ')</span></dd></div>' +
-            '<div><dt>性别</dt><dd>' + (pet.gender === 'male' ? '公犬' : '母犬') + '</dd></div>' +
-            '<div><dt>绝育状态</dt><dd>' + (pet.neutered === '是' ? '已绝育' : pet.neutered === '否' ? '未绝育' : '未知') + '</dd></div>' +
-            '<div><dt>当前体重</dt><dd>' + esc(pet.weight) + ' kg</dd></div>' +
-            '<div><dt>建议洗澡间隔</dt><dd>' + (pet.bathIntervalDays || 24) + ' 天</dd></div>' +
-            '<div><dt>上次洗澡</dt><dd>' + esc(pet.lastBathDate || '未记录') + '</dd></div>' +
-          '</dl>' +
-        '</div>' +
+    if (pet.neutered === '是') tags.push('<span class="hp-tag hp-tag-good">✂ 已绝育</span>');
+    else if (pet.neutered === '否') tags.push('<span class="hp-tag hp-tag-warn">✂ 未绝育</span>');
+    else tags.push('<span class="hp-tag hp-tag-missing" data-action="openProfileModal">✂ 绝育未知</span>');
 
-        '<div class="card">' +
-          '<div class="card-head"><div class="card-head-main">' +
-            '<div class="card-title">' + A.icon('heart') + '健康信息</div>' +
-            '<div class="card-sub">过敏源与既往疾病会影响营养建议</div>' +
-          '</div></div>' +
-          '<div class="info-block">' +
-            '<span class="info-label">过敏源</span>' +
-            '<div class="tag-row">' + (allergies.length ? allergies.map(function (a) { return '<span class="chip chip-red">' + esc(a) + '</span>'; }).join('') : '<span class="chip chip-muted">未记录过敏源</span>') + '</div>' +
-          '</div>' +
-          '<div class="info-block">' +
-            '<span class="info-label">既往疾病</span>' +
-            '<div class="tag-row">' + (diseases.length ? diseases.map(function (a) { return '<span class="chip chip-amber">' + esc(a) + '</span>'; }).join('') : '<span class="chip chip-muted">未记录既往疾病</span>') + '</div>' +
-          '</div>' +
-          '<div class="info-block">' +
-            '<span class="info-label">理想体重范围</span>' +
-            (range
-              ? '<div class="range-bar"><div class="range-track"><span class="range-fill"></span><i class="range-marker" style="left:' + rangePos + '%"></i></div>' +
-                '<div class="range-labels"><span>' + range[0] + ' kg</span><span class="range-current">当前 ' + esc(pet.weight) + ' kg</span><span>' + range[1] + ' kg</span></div></div>'
-              : '<p class="small muted">该品种暂无内置理想体重范围。</p>') +
-          '</div>' +
-          '<div class="notice notice-info">' + A.icon('alert') +
-            '<span>健康信息与营养建议仅作日常照护参考，不构成兽医诊断。' + (pet.diseases ? '档案中记录的疾病情况请在兽医指导下管理。' : '') + '</span>' +
-          '</div>' +
-        '</div>' +
+    tags.push('<span class="hp-tag ' + (bcs && bcs.state === 'ideal' ? 'hp-tag-good' : bcs ? 'hp-tag-warn' : 'hp-tag-missing') + '">🤚 BCS ' + bcsLabel + '</span>');
+
+    if (pet.allergies && pet.allergies.trim()) tags.push('<span class="hp-tag hp-tag-warn">⚠ ' + esc(pet.allergies) + '</span>');
+    else tags.push('<span class="hp-tag hp-tag-missing" data-action="openProfileModal">📋 过敏源</span>');
+
+    if (pet.diseases && pet.diseases.trim()) tags.push('<span class="hp-tag hp-tag-info">🏥 ' + esc(pet.diseases) + '</span>');
+    else tags.push('<span class="hp-tag hp-tag-missing" data-action="openProfileModal">🏥 健康状况</span>');
+
+    var missing = [];
+    if (!pet.allergies) missing.push('过敏源');
+    if (!pet.diseases) missing.push('健康状况');
+    if (pet.neutered === '未知') missing.push('绝育状态');
+
+    return '<div class="health-profile-card">' +
+      '<div class="hp-card-header">' +
+        '<span class="hp-icon">🐶</span>' +
+        '<span class="hp-name">' + esc(pet.name) + ' 的健康档案</span>' +
+        '<button type="button" class="btn btn-text btn-sm" data-action="openProfileModal">✏️ 编辑</button>' +
       '</div>' +
+      '<div class="hp-tags">' + tags.join('') + '</div>' +
+      (range ? '<div class="hp-range-note">' + esc(pet.breed) + '理想体重参考：' + range[0] + '–' + range[1] + ' kg</div>' : '') +
+      (missing.length ? '<div class="hp-action-row" data-action="openProfileModal">📋 补全' + missing.join('、') + '，让建议更精准 →</div>' : '') +
+    '</div>';
+  }
 
-      '<div class="profile-grid">' +
-        '<div class="card">' +
-          '<div class="card-head"><div class="card-head-main">' +
-            '<div class="card-title">' + A.icon('clipboard') + '照护数据概览</div>' +
-            '<div class="card-sub">当前演示档案累计记录</div>' +
-          '</div></div>' +
-          '<div class="mini-stat-grid">' +
-            '<div class="mini-stat"><b>' + vaccines + '</b><span>疫苗接种</span></div>' +
-            '<div class="mini-stat"><b>' + deworm + '</b><span>驱虫记录</span></div>' +
-            '<div class="mini-stat"><b>' + state.events.filter(function (e) { return e.type === '洗澡澡'; }).length + '</b><span>洗澡记录</span></div>' +
-            '<div class="mini-stat"><b>' + state.badges.length + '</b><span>已解锁勋章</span></div>' +
-          '</div>' +
-          '<div class="card-actions">' +
-            '<button type="button" class="btn btn-secondary btn-sm" data-nav="records">查看健康记录</button>' +
-            '<button type="button" class="btn btn-secondary btn-sm" data-nav="trends">查看体重趋势</button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="card">' +
-          '<div class="card-head"><div class="card-head-main">' +
-            '<div class="card-title">' + A.icon('sparkles') + '演示说明</div>' +
-            '<div class="card-sub">这是独立于原 Python 应用的静态展示层</div>' +
-          '</div></div>' +
-          '<ul class="plain-list">' +
-            '<li>所有宠物资料、事件和趋势均为虚构演示数据。</li>' +
-            '<li>编辑档案会实时影响营养计算、提醒和勋章判定。</li>' +
-            '<li>操作保存在当前浏览器 localStorage，刷新后仍会保留。</li>' +
-            '<li>点击侧边栏「重置演示数据」可恢复初始状态。</li>' +
-          '</ul>' +
-          '<div class="card-actions">' +
-            '<button type="button" class="btn btn-ghost btn-sm" data-action="resetDemo">' + A.icon('reset') + '重置演示数据</button>' +
-          '</div>' +
-        '</div>' +
+  function renderGrowthCompact(state) {
+    var unlocked = state.badges.slice(-3).reverse();
+    var next = D.nextBadgeInfo(state);
+    var badges = unlocked.map(function (b) {
+      var def = D.BADGES.filter(function (d) { return d.name === b.name; })[0] || {};
+      return '<span class="growth-badge-mini">' + (def.icon || '🎖️') + ' ' + esc(b.name) + '</span>';
+    }).join('');
+    if (next) badges += '<span class="growth-badge-mini locked">🔒 ' + next.def.icon + ' ' + esc(next.name) + '</span>';
+    var latest = latestEvent(state);
+    return '<div class="section-label">📸 成长记录</div>' +
+      '<div class="growth-compact">' +
+        (badges
+          ? '<div class="growth-badges-row">' + badges + '</div>'
+          : '<div class="growth-empty"><div class="growth-empty-icon">🎖️</div><div class="growth-empty-text">第一枚勋章还在路上</div><div class="growth-empty-hint">记录一次健康事件，就会开始积累成长印记。</div></div>') +
+        (latest ? '<div class="growth-latest">最近一次：' + esc(D.EVENT_META[latest.type] ? D.EVENT_META[latest.type].label : latest.type) + ' · ' + esc(latest.date) + '</div>' : '') +
+        '<button type="button" class="growth-more-link" data-nav="badges">查看全部成长记录 →</button>' +
+      '</div>';
+  }
+
+  function renderHome(state) {
+    return '<div id="page-home">' +
+      renderTodayCard(state) +
+      renderDailyCheck(state) +
+      renderQuickGrid(state) +
+      renderHealthProfile(state) +
+      renderGrowthCompact(state) +
+      '<div class="home-footer-actions">' +
+        '<button type="button" class="btn btn-text btn-sm" data-action="exportState">📥 备份数据</button>' +
+        '<span class="footer-dot">·</span>' +
+        '<button type="button" class="btn btn-text btn-sm" data-action="resetDemo">重置演示数据</button>' +
       '</div>' +
     '</div>';
   }
 
-  /* ---------------- 动作 ---------------- */
+  /* ---------------- 签到 / 任务 / 健康检查 ---------------- */
   A.actions.checkinToday = function () {
     if (D.checkedToday(A.state)) {
-      A.toast('今天已经签过到啦，明天再来～', 'warn');
+      A.toast('今天已经打过卡啦，明天再来吧～', 'warn');
       return;
     }
     var res = D.recordCheckin(A.state);
     var badges = D.checkBadges(A.state);
     A.commit({ keepScroll: true });
-    A.toast('签到成功，获得 1 枚爪印 · 连续 ' + res.streak + ' 天');
+    A.toast('签到成功！连续第 ' + res.streak + ' 天');
     A.celebrate(badges);
   };
 
@@ -415,41 +239,23 @@
     A.celebrate(badges);
   };
 
-  A.actions.openDailyCheck = function () {
-    if (D.dailyCheckDone(A.state)) {
-      A.toast('今天的健康检查已经完成了', 'warn');
-      return;
-    }
-    A.openModal({
-      title: '今日健康检查',
-      subtitle: '用 1 分钟轻轻触摸狗狗，确认是否有异常',
-      size: 'sm',
-      body: '<p class="confirm-text">摸摸' + esc(A.state.pet.name) + '的头部、背部、四肢和腹部，留意硬块、红肿、脱毛或异常发热。</p>' +
-        '<div class="notice notice-info">' + A.icon('sparkles') + '<span>完成后记录到健康时间线，并获得 1 枚爪印。</span></div>',
-      footer: '<button type="button" class="btn btn-secondary" data-daily-normal>✅ 一切正常</button>' +
-        '<button type="button" class="btn btn-primary" data-daily-abnormal>⚠️ 发现异常</button>'
-    });
-    document.querySelector('[data-daily-normal]').addEventListener('click', function () {
-      finishDailyCheck('normal');
-    });
-    document.querySelector('[data-daily-abnormal]').addEventListener('click', function () {
-      A.closeModal();
-      A.setStateDailyCheckForm();
-    });
+  A.actions.dailyCheckNormal = function () {
+    finishDailyCheck('normal');
   };
 
-  A.setStateDailyCheckForm = function () {
+  A.actions.openDailyCheckAbnormal = function () {
     A.openModal({
       title: '记录异常发现',
       subtitle: '请描述观察到的情况，必要时及时联系兽医',
+      icon: '⚠️',
       size: 'sm',
       body: '<form data-form="dailyCheckAbnormal">' +
-        '<div class="field"><label for="dcNote">观察到的情况</label>' +
+        '<div class="form-col"><label for="dcNote">观察到的情况</label>' +
         '<textarea class="textarea" id="dcNote" name="note" placeholder="例如：背部有一小块红肿，狗狗频繁抓挠…"></textarea></div>' +
         '<div class="form-error" data-error></div>' +
-        '<div class="notice notice-warn" style="margin-top:14px">' + A.icon('alert') + '<span>如果出现持续呕吐、便血、抽搐、呼吸困难等情况，请立即就医。</span></div>' +
+        '<div class="notice notice-warn">如果出现持续呕吐、便血、抽搐、呼吸困难等情况，请立即就医。</div>' +
       '</form>',
-      footer: '<button type="button" class="btn btn-ghost" data-modal-close>取消</button>' +
+      footer: '<button type="button" class="btn btn-secondary" data-modal-close>取消</button>' +
         '<button type="button" class="btn btn-primary" data-daily-submit>记录异常</button>'
     });
     document.querySelector('[data-daily-submit]').addEventListener('click', function () {
@@ -479,40 +285,74 @@
     A.celebrate(badges);
   }
 
+  /* ---------------- 爪印明细 ---------------- */
+  A.actions.openPawHistory = function () {
+    var logs = A.state.pointsLog.slice(0, 30);
+    A.openModal({
+      title: '爪印获取记录',
+      subtitle: '当前累计 ' + A.state.pet.pawPoints + ' 枚爪印',
+      icon: '🐾',
+      size: 'sm',
+      body: '<div class="paw-history-list">' +
+        (logs.length
+          ? logs.map(function (p) {
+            var parts = String(p.date).split('T');
+            var d = parts[0].split('-');
+            var dateText = d.length === 3 ? Number(d[1]) + '月' + Number(d[2]) + '日' + (parts[1] ? ' ' + parts[1] : '') : p.date;
+            return '<div class="paw-history-item"><div class="paw-history-item-left">' +
+              '<span class="paw-history-item-reason">' + esc(p.reason) + '</span>' +
+              '<span class="paw-history-item-date">' + esc(dateText) + '</span></div>' +
+              '<span class="paw-history-item-amount">+' + p.amount + '</span></div>';
+          }).join('')
+          : '<div class="paw-history-empty">还没有爪印记录哦～<br/>签到、做任务、记录事件都能赚爪印！</div>') +
+      '</div>',
+      footer: '<button type="button" class="btn btn-primary" data-modal-close>知道了</button>'
+    });
+  };
+
+  /* ---------------- 档案编辑 ---------------- */
   A.actions.openProfileModal = function () {
     var pet = A.state.pet;
     var breedOptions = D.BREED_OPTIONS.map(function (b) {
       return '<option value="' + esc(b) + '"' + (b === pet.breed ? ' selected' : '') + '>' + esc(b) + '</option>';
     }).join('');
     A.openModal({
-      title: '编辑宠物档案',
+      title: '更新宠物档案',
       subtitle: '修改后会立即影响营养计算、提醒与勋章判定',
+      icon: '✏️',
       size: 'lg',
       body: '<form data-form="profileEdit">' +
-        '<div class="form-grid">' +
-          '<div class="field"><label for="pfName">名字 <em>*</em></label><input class="input" id="pfName" name="name" maxlength="64" value="' + esc(pet.name) + '" /></div>' +
-          '<div class="field"><label for="pfBreed">品种 <em>*</em></label><select class="select" id="pfBreed" name="breed">' + breedOptions + '</select></div>' +
-          '<div class="field"><label for="pfBirthday">生日 <em>*</em></label><input class="input" id="pfBirthday" name="birthday" type="date" value="' + esc(pet.birthday) + '" max="' + D.todayISO() + '" /></div>' +
-          '<div class="field"><label for="pfHome">到家日期</label><input class="input" id="pfHome" name="homeDate" type="date" value="' + esc(pet.homeDate || '') + '" max="' + D.todayISO() + '" /></div>' +
-          '<div class="field"><label for="pfGender">性别</label><select class="select" id="pfGender" name="gender">' +
-            '<option value="female"' + (pet.gender === 'female' ? ' selected' : '') + '>母犬</option>' +
-            '<option value="male"' + (pet.gender === 'male' ? ' selected' : '') + '>公犬</option></select></div>' +
-          '<div class="field"><label for="pfNeutered">绝育状态</label><select class="select" id="pfNeutered" name="neutered">' +
+        '<div class="form-row">' +
+          '<div class="form-col"><label for="pfName">我的名字 <span class="required">*</span></label><input class="input" id="pfName" name="name" maxlength="64" value="' + esc(pet.name) + '" /></div>' +
+          '<div class="form-col"><label for="pfBreed">我的品种 <span class="required">*</span></label><select class="select" id="pfBreed" name="breed">' + breedOptions + '</select></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-col"><label for="pfBirthday">我的生日 <span class="required">*</span></label><input class="input" id="pfBirthday" name="birthday" type="date" value="' + esc(pet.birthday) + '" max="' + D.todayISO() + '" /></div>' +
+          '<div class="form-col"><label for="pfHome">到家日期</label><input class="input" id="pfHome" name="homeDate" type="date" value="' + esc(pet.homeDate || '') + '" max="' + D.todayISO() + '" /></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-col"><label for="pfWeight">我的体重</label><span class="weight-input-wrap"><input id="pfWeight" name="weight" inputmode="decimal" value="' + esc(pet.weight) + '" placeholder="例：11.4" /><span class="weight-unit">kg</span></span></div>' +
+          '<div class="form-col"><label for="pfGender">我的性别</label><select class="select" id="pfGender" name="gender">' +
+            '<option value="female"' + (pet.gender === 'female' ? ' selected' : '') + '>母</option>' +
+            '<option value="male"' + (pet.gender === 'male' ? ' selected' : '') + '>公</option></select></div>' +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-col"><label for="pfNeutered">绝育情况</label><select class="select" id="pfNeutered" name="neutered">' +
             ['是', '否', '未知'].map(function (v) { return '<option value="' + v + '"' + (pet.neutered === v ? ' selected' : '') + '>' + v + '</option>'; }).join('') +
           '</select></div>' +
-          '<div class="field"><label for="pfWeight">体重（kg）</label><input class="input" id="pfWeight" name="weight" inputmode="decimal" value="' + esc(pet.weight) + '" placeholder="例如 11.4" /></div>' +
-          '<div class="field"><label for="pfBath">建议洗澡间隔（天）</label><input class="input" id="pfBath" name="bathInterval" inputmode="numeric" value="' + (pet.bathIntervalDays || 24) + '" /></div>' +
-          '<div class="field span-2"><label for="pfAllergies">过敏源</label><input class="input" id="pfAllergies" name="allergies" value="' + esc(pet.allergies || '') + '" placeholder="多个用逗号分隔，例如：牛肉, 鸡肉" /><span class="hint">系统会自动过滤主食谱与备选食材中的过敏源。</span></div>' +
-          '<div class="field span-2"><label for="pfDiseases">既往疾病</label><input class="input" id="pfDiseases" name="diseases" value="' + esc(pet.diseases || '') + '" placeholder="多个用逗号分隔" /></div>' +
+          '<div class="form-col"><label for="pfAllergies">过敏源</label><input class="input" id="pfAllergies" name="allergies" value="' + esc(pet.allergies || '') + '" placeholder="逗号分隔，如：鸡肉,谷物" /></div>' +
         '</div>' +
-        '<div class="form-error" data-error style="margin-top:14px"></div>' +
+        '<div class="form-row">' +
+          '<div class="form-col"><label for="pfDiseases">已知健康状况</label><input class="input" id="pfDiseases" name="diseases" value="' + esc(pet.diseases || '') + '" placeholder="如：慢性肾病、胰腺炎、心脏病等" /></div>' +
+          '<div class="form-col"><label for="pfBath">建议洗澡间隔</label><span class="weight-input-wrap"><input id="pfBath" name="bathInterval" inputmode="numeric" value="' + (pet.bathIntervalDays || 24) + '" /><span class="weight-unit">天</span></span></div>' +
+        '</div>' +
+        '<div class="form-error" data-error></div>' +
+        '<div class="notice notice-info">健康档案中的过敏源、疾病与体重会同步影响饮食、保健品与提醒计算。</div>' +
       '</form>',
-      footer: '<button type="button" class="btn btn-ghost" data-modal-close>取消</button>' +
+      footer: '<button type="button" class="btn btn-secondary" data-modal-close>取消</button>' +
         '<button type="button" class="btn btn-primary" data-profile-save>保存档案</button>'
     });
-    document.querySelector('[data-profile-save]').addEventListener('click', function () {
-      saveProfile();
-    });
+    document.querySelector('[data-profile-save]').addEventListener('click', saveProfile);
   };
 
   function saveProfile() {
@@ -542,6 +382,7 @@
     if (isNaN(bathInterval) || bathInterval < 1) return fail('洗澡间隔至少为 1 天。');
 
     var pet = A.state.pet;
+    var weightChanged = weight && String(D.parseWeight(weight)) !== String(D.parseWeight(pet.weight));
     pet.name = name;
     pet.breed = breed;
     pet.birthday = birthday;
@@ -551,7 +392,7 @@
     pet.diseases = diseases;
     pet.homeDate = homeDate;
     pet.bathIntervalDays = bathInterval;
-    if (weight) D.addWeight(A.state, weight, D.todayISO());
+    if (weightChanged) D.addWeight(A.state, weight, D.todayISO());
 
     var badges = D.checkBadges(A.state);
     A.closeModal();
@@ -561,33 +402,10 @@
   }
 
   A.actions.exportState = A.exportState;
-  A.actions.resetDemo = function () {
-    A.confirm({
-      title: '重置演示数据',
-      message: '将清除本浏览器中保存的全部演示操作，恢复初始档案。',
-      note: '不会影响任何真实数据或原 Python 应用。',
-      confirmText: '重置',
-      danger: true
-    }).then(function (ok) {
-      if (!ok) return;
-      A.state = D.Store.reset();
-      D.checkBadges(A.state);
-      D.Store.save(A.state);
-      A.navigate('dashboard');
-      A.render();
-      A.toast('演示数据已重置');
-    });
-  };
+  A.actions.resetDemo = A.resetDemo;
 
-  A.registerPage('dashboard', {
+  A.registerPage('home', {
     title: '首页',
-    subtitle: function (state) { return state.pet.name + ' · ' + state.pet.breed + ' · ' + D.ageText(state.pet.birthday); },
-    render: renderDashboard
-  });
-
-  A.registerPage('profile', {
-    title: '宠物档案',
-    subtitle: '一只狗狗的完整数字档案',
-    render: renderProfile
+    render: renderHome
   });
 })();
