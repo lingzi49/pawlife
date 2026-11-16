@@ -12,7 +12,7 @@ PawLife 是一个面向养犬人的健康管理 Web 应用原型，围绕宠物�
 
 三者没有共用同一套数据库、用户体系或完整业务运行时，不能描述为已经打通的统一系统。PawLife 的输出是基于规则的照护参考，不是兽医诊断，也不替代线下就诊。
 
-**文档导航**：[技术细节](docs/TECHNICAL_DETAILS.md) · [审计报告](docs/AUDIT.md) · [作品集案例](docs/PORTFOLIO_CASE_STUDY.md)
+**文档导航**：[在线演示](https://lingzi49.github.io/pawlife/) · [技术细节](docs/TECHNICAL_DETAILS.md) · [审计报告](docs/AUDIT.md) · [作品集案例](docs/PORTFOLIO_CASE_STUDY.md)
 
 ---
 
@@ -58,11 +58,13 @@ python -m http.server 8080 -d showcase
 # 打开 http://localhost:8080/
 ```
 
-### 2.2 在线访问状态
+### 2.2 在线演示
 
-当前**没有可访问的在线演示地址**。检查时仓库的 GitHub Pages 地址返回 404，仓库也没有已成功发布的演示站点。
+**在线地址**：<https://lingzi49.github.io/pawlife/>
 
-仓库包含 `.github/workflows/deploy-showcase.yml`，仅用于发布 `showcase/`；但仓库的 Pages 站点尚未启用。需要仓库管理员在 **Settings → Pages → Source** 中选择 **GitHub Actions**，之后工作流才能发布。完成该设置前，不应把任何 GitHub Pages 地址视为可用。
+2026-11-16 实测该地址返回 200，7 个页面和 CSS/JS/图片资源均可加载；GitHub Actions 的 `Deploy Showcase to GitHub Pages` 工作流已成功完成。
+
+在线站点只发布 `showcase/` 静态文件，使用模拟数据「团团」和浏览器 `localStorage`，不会连接原始 Python Web 后端，也不会读取 SQLite、照片目录或真实用户数据。部署配置为 `.github/workflows/deploy-showcase.yml`，Pages Source 使用 **GitHub Actions**。
 
 ### 2.3 三个部分的区别
 
@@ -320,7 +322,7 @@ flowchart LR
 | SQLite | Web 应用本地数据库 |
 | 本地文件目录 | 照片存储；头像盲盒照片以 Base64 存入数据库 |
 | PostgreSQL | 小程序后端数据库 |
-| GitHub Actions | `showcase/` 的 Pages 发布工作流；站点尚未启用 |
+| GitHub Actions | `showcase/` 的 Pages 发布工作流；站点已启用并完成部署 |
 | 微信开发者工具 | 小程序预览和配置 |
 
 ### AI 工具
@@ -464,7 +466,7 @@ Showcase 是纯静态文件，不需要安装 Python 依赖，也不需要启动
 - 首页每日养宠提示、健康成长相册；
 - CSV 导出；
 - 静态展示版 `showcase/`；
-- GitHub Pages 工作流配置（站点尚未启用）；
+- GitHub Pages 静态站点（已验证在线访问）；
 - 独立的小程序页面和后端代码（需自行配置和验证）。
 
 ### 11.2 部分实现
@@ -491,7 +493,7 @@ Showcase 是纯静态文件，不需要安装 Python 依赖，也不需要启动
 - `FakeRedis` 是进程内缓存，多进程部署时幂等保护不共享；
 - 自动化测试只覆盖部分核心规则，未覆盖全部 API、浏览器和数据库迁移；
 - 规则和食材数据没有经过完整临床验证，不能替代兽医；
-- Pages 站点尚未启用，当前没有可访问的在线演示地址。
+- 在线演示只覆盖 Showcase；原始 Web 后端没有部署到公网。
 
 更完整的问题、影响和状态见 [审计报告](docs/AUDIT.md)。
 
