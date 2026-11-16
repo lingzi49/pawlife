@@ -12,7 +12,7 @@ PawLife 是一个面向养犬人的健康管理 Web 应用原型，围绕宠物�
 
 三者没有共用同一套数据库、用户体系或完整业务运行时，不能描述为已经打通的统一系统。PawLife 的输出是基于规则的照护参考，不是兽医诊断，也不替代线下就诊。
 
-**文档导航**：[技术细节](docs/TECHNICAL_DETAILS.md) · [审计报告](docs/AUDIT.md)
+**文档导航**：[技术细节](docs/TECHNICAL_DETAILS.md) · [审计报告](docs/AUDIT.md) · [作品集案例](docs/PORTFOLIO_CASE_STUDY.md)
 
 ---
 
@@ -268,7 +268,7 @@ flowchart LR
 - 页面会加载 Google Fonts 外部资源；
 - 没有独立前端构建、消息队列或微服务。
 
-Web 应用当前有 37 个 HTTP 路由、8 张 SQLite 表；API 清单和规则细节见 [技术细节](docs/TECHNICAL_DETAILS.md)。
+Web 应用的具体 API、数据结构和规则见 [技术细节](docs/TECHNICAL_DETAILS.md)。
 
 ### 6.2 Showcase
 
@@ -338,7 +338,8 @@ AI 工具只用于开发过程中的需求整理、代码生成、调试和文�
 ├── pawlife_web.py                # 原始 Web 应用：模型、规则、API、内嵌前端
 ├── docs/
 │   ├── AUDIT.md                  # 当前审计发现与验证记录
-│   └── TECHNICAL_DETAILS.md      # 数据模型、API、规则和实现细节
+│   ├── TECHNICAL_DETAILS.md      # 数据模型、API、规则和实现细节
+│   └── PORTFOLIO_CASE_STUDY.md   # 项目案例与面试准备材料
 ├── showcase/                     # 独立静态展示版
 │   ├── index.html
 │   ├── css/
