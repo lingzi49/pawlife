@@ -355,6 +355,48 @@ HIGH_RISK_SYMPTOMS = [
     "误食老鼠药", "被蛇咬", "严重外伤", "大出血", "骨折", "烫伤",
 ]
 
+# 少量常见口语/同义表达映射到上面的高风险词。
+# 这里只做“更谨慎地提示”，不把普通症状自动升级为高风险。
+HIGH_RISK_SYNONYMS = {
+    "一直吐": "持续呕吐",
+    "不停吐": "持续呕吐",
+    "连续吐": "持续呕吐",
+    "拉血": "便血",
+    "大便带血": "便血",
+    "抽风": "抽搐",
+    "喘不上气": "呼吸困难",
+    "呼吸很急": "呼吸急促",
+    "吃了巧克力": "误食巧克力",
+    "吃了葡萄": "误食葡萄",
+    "吃了洋葱": "误食洋葱",
+    "吃了木糖醇": "误食木糖醇",
+    "没有意识": "意识丧失",
+    "失去意识": "意识丧失",
+    "晕过去": "昏厥",
+    "昏过去": "昏厥",
+    "吐了血": "吐血",
+    "拉黑便": "黑便",
+    "大便发黑": "黑便",
+    "呼吸费力": "呼吸困难",
+    "喘得厉害": "呼吸困难",
+    "口吐白沫": "抽搐",
+}
+
+# 疫苗提醒周期是项目提醒参数，不是医学标准。
+# 默认 1095 天与原有后端实现一致，可通过环境变量统一调整。
+try:
+    VACCINE_REMINDER_DAYS = max(1, int(os.environ.get("VACCINE_REMINDER_DAYS", "1095")))
+except ValueError:
+    VACCINE_REMINDER_DAYS = 1095
+
+# CORS 默认不开放跨域；本地同源页面不需要 CORS。
+# 如确需跨域调试，可显式设置 ALLOWED_ORIGINS，例如 http://127.0.0.1:3000
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 # 品种理想体重范围 (kg)，用于 黄金体重 勋章判定
 BREED_IDEAL_WEIGHT = {
     "泰迪": (2.0, 5.0),
@@ -892,9 +934,9 @@ def generate_bath_reaction(dog_name: str, bath_interval: int, last_bath: date) -
 app = FastAPI(title="PawLife", description="狗狗健康管理 · 防焦虑伴侣", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 from fastapi.staticfiles import StaticFiles  # noqa: E402 — 必须在 app 创建后挂载
@@ -1154,6 +1196,155 @@ def _weight_in_range(weight_str, low, high):
     return low * 0.85 <= wv <= high * 1.15
 
 
+_HIGH_RISK_NEGATION_RE = re.compile(
+    r"(?:没有|没|未见|未出现|无|否认|并无|不再|没再|未再|未|不)"
+    r"(?:明显)?(?:的)?(?:出现|发现|发生)?\s*$"
+)
+_HIGH_RISK_HISTORY_MARKERS = ("上次", "之前", "以前", "曾经", "过去", "昨天", "前天", "上周")
+_HIGH_RISK_RESOLVED_MARKERS = (
+    "已恢复", "已经恢复", "已好转", "已经好了", "恢复正常",
+    "现在正常", "目前正常", "无复发", "没再", "未再", "已稳定",
+)
+
+
+def _is_negated_or_resolved(text: str, start: int, end: int) -> bool:
+    """判断命中片段是否被否定，或明确属于已恢复的历史描述。
+
+    只处理关键词附近的上下文，避免把“没有精神，持续呕吐”误判为否定。
+    """
+    before = text[max(0, start - 10):start]
+    after = text[end:end + 28]
+    if _HIGH_RISK_NEGATION_RE.search(before):
+        return True
+    has_history = any(marker in before for marker in _HIGH_RISK_HISTORY_MARKERS)
+    has_resolution = any(marker in after for marker in _HIGH_RISK_RESOLVED_MARKERS)
+    if has_history and has_resolution:
+        return True
+    if has_history and re.search(
+        r"(今天|现在|目前|当前).{0,8}(正常|稳定|精神好|精神不错|已恢复|没有|无|未见|未出现)", after
+    ):
+        return True
+    return False
+
+
+def _scan_high_risk_text(text: Optional[str]) -> Optional[str]:
+    """扫描高风险文本，返回命中的规范关键词；未命中返回 None。
+
+    这是症状提示规则，不是诊断。前端和后端使用同一份词表；
+    同义表达只用于保守提示，不把普通症状自动升级为高风险。
+    否定表达和“上次已恢复”的历史描述会被跳过；同一文本中后续未否定的
+    风险词仍会正常命中。
+    """
+    if not text:
+        return None
+    normalized = str(text)
+
+    def find_unnegated(needle: str) -> Optional[str]:
+        start = normalized.find(needle)
+        while start != -1:
+            end = start + len(needle)
+            if not _is_negated_or_resolved(normalized, start, end):
+                return needle
+            start = normalized.find(needle, start + 1)
+        return None
+
+    for keyword in HIGH_RISK_SYMPTOMS:
+        if find_unnegated(keyword):
+            return keyword
+    for phrase, keyword in HIGH_RISK_SYNONYMS.items():
+        if find_unnegated(phrase):
+            return keyword
+    return None
+
+
+def _event_risk_text(detail: Optional[Dict[str, Any]]) -> str:
+    """从事件 detail 中提取用于风险扫描的症状和备注文本。"""
+    if not isinstance(detail, dict):
+        return ""
+    parts: List[str] = []
+    symptoms = detail.get("symptoms")
+    if isinstance(symptoms, list):
+        parts.extend(str(item) for item in symptoms)
+    note = detail.get("note")
+    if note:
+        parts.append(str(note))
+    return "，".join(parts)
+
+
+def _recompute_last_bath_date(db, dog: Dog):
+    """按现有洗澡事件重算最近洗澡日期。"""
+    latest_bath = db.query(Event).filter(
+        Event.dog_id == dog.id, Event.type == "洗澡澡"
+    ).order_by(Event.date.desc()).first()
+    dog.last_bath_date = latest_bath.date if latest_bath else None
+
+
+def _recompute_suspension(db, dog: Dog):
+    """按今天创建的高风险事件重算暂停状态。
+
+    当前逻辑只暂停“记录当天”的建议；历史高风险记录不会永久暂停。
+    """
+    today = datetime.utcnow().date()
+    risk_events = db.query(Event).filter(
+        Event.dog_id == dog.id, Event.high_risk == 1
+    ).all()
+    has_today_risk = any(
+        event.created_at and event.created_at.date() == today
+        for event in risk_events
+    )
+    if has_today_risk:
+        dog.suspended_until = datetime.utcnow().replace(
+            hour=23, minute=59, second=59, microsecond=0
+        )
+    else:
+        dog.suspended_until = None
+
+
+def _remove_health_photo_reference(dog: Dog, filename: Optional[str]):
+    """删除事件时同步移除健康相册中的引用，避免留下破图。"""
+    if not dog or not filename or not dog.health_photos:
+        return
+    try:
+        photos = json.loads(dog.health_photos)
+    except (json.JSONDecodeError, TypeError):
+        return
+    if not isinstance(photos, list):
+        return
+    remaining = [
+        item for item in photos
+        if not (isinstance(item, dict) and item.get("filename") == filename)
+    ]
+    dog.health_photos = json.dumps(remaining, ensure_ascii=False) if remaining else None
+
+
+def _sync_health_photo_reference(dog: Dog, filename: Optional[str], event_type: str, event_date):
+    """事件编辑后同步健康相册中的类型和日期。"""
+    if not dog or not filename or not dog.health_photos:
+        return
+    try:
+        photos = json.loads(dog.health_photos)
+    except (json.JSONDecodeError, TypeError):
+        return
+    if not isinstance(photos, list):
+        return
+    changed = False
+    updated = []
+    for item in photos:
+        if not isinstance(item, dict) or item.get("filename") != filename:
+            updated.append(item)
+            continue
+        changed = True
+        if event_type == "异常行为":
+            continue
+        new_item = dict(item)
+        new_item["event_type"] = event_type
+        new_item["event_date"] = event_date.isoformat() if event_date else ""
+        new_item["label"] = event_type
+        updated.append(new_item)
+    if changed:
+        dog.health_photos = json.dumps(updated, ensure_ascii=False) if updated else None
+
+
 # ============================================================
 # API 路由
 # ============================================================
@@ -1178,6 +1369,7 @@ def api_get_dog():
             "diseases": dog.diseases or "",
             "suspended_until": dog.suspended_until.isoformat() if dog.suspended_until else None,
             "home_date": dog.home_date.isoformat() if dog.home_date else None,
+            "last_bath_date": dog.last_bath_date.isoformat() if dog.last_bath_date else None,
             "health_photos": json.loads(dog.health_photos) if dog.health_photos else [],
             "paw_points": dog.paw_points or 0,
             "photo_count": len(json.loads(dog.photos)) if dog.photos else 0,
@@ -1764,6 +1956,10 @@ def api_create_event(payload: EventCreate):
                 raise HTTPException(status_code=400, detail="我是小王子，不会来姨妈哦～")
 
             detail_json = json.dumps(payload.detail, ensure_ascii=False) if payload.detail else None
+            risk_text = _event_risk_text(payload.detail)
+            detected_keyword = _scan_high_risk_text(risk_text) if payload.type == "异常行为" else None
+            effective_keyword = detected_keyword or (payload.risk_keyword or None)
+            effective_high_risk = bool(payload.high_risk) or bool(detected_keyword)
             # 处理Base64照片（如有）
             photo_filename = None
             if payload.photo:
@@ -1786,26 +1982,21 @@ def api_create_event(payload: EventCreate):
                 type=payload.type,
                 date=payload.date,
                 detail=detail_json,
-                high_risk=payload.high_risk or 0,
-                risk_keyword=payload.risk_keyword or None,
+                high_risk=1 if effective_high_risk else 0,
+                risk_keyword=effective_keyword,
                 photo=photo_filename,
             )
             db.add(event)
+            db.flush()  # 先写入以取得 event.id，并让后续派生状态查询可见
 
             # 高风险事件：暂停饮食和保健品建议至当天结束
-            if payload.high_risk:
+            if effective_high_risk:
                 today_end = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=0)
                 dog.suspended_until = today_end
-                # 记录风险日志
-                symptom_text = ""
-                if payload.detail and isinstance(payload.detail, dict):
-                    symptoms = payload.detail.get("symptoms", [])
-                    if isinstance(symptoms, list):
-                        symptom_text = "，".join(symptoms)
                 risk_log = RiskLog(
                     dog_id=payload.dog_id,
-                    input_text=symptom_text[:512],
-                    matched_keyword=payload.risk_keyword or "",
+                    input_text=risk_text[:512],
+                    matched_keyword=effective_keyword or "",
                     action_taken="suspended_diet_and_supplements",
                     warning_shown=1,
                     user_confirmed=1,
@@ -1854,6 +2045,8 @@ def api_create_event(payload: EventCreate):
                 "event_id": event.id,
                 "avatar_unlocked": True,
                 "new_badges": new_badges or [],
+                "high_risk": bool(effective_high_risk),
+                "risk_keyword": effective_keyword,
                 "prompt_health_photo": payload.type != "异常行为",
             }
     except Exception:
@@ -1876,12 +2069,49 @@ def api_update_event(event_id: int, payload: EventCreate):
         if payload.type == "发情" and dog and dog.gender == "male":
             raise HTTPException(status_code=400, detail="我是小王子，不会来姨妈哦～")
 
+        risk_text = _event_risk_text(payload.detail)
+        detected_keyword = _scan_high_risk_text(risk_text) if payload.type == "异常行为" else None
+        effective_keyword = detected_keyword or (payload.risk_keyword or None)
+        effective_high_risk = bool(payload.high_risk) or bool(detected_keyword)
+        was_high_risk = bool(event.high_risk)
+        old_type = event.type
+
         event.type = payload.type
         event.date = payload.date
         event.detail = json.dumps(payload.detail, ensure_ascii=False) if payload.detail else None
+        event.high_risk = 1 if effective_high_risk else 0
+        event.risk_keyword = effective_keyword
         db.flush()
 
-        return {"message": "汪汪！事件已更新，主人的记录越来越完整了～🐾", "event_id": event.id}
+        if effective_high_risk:
+            dog.suspended_until = datetime.utcnow().replace(
+                hour=23, minute=59, second=59, microsecond=0
+            )
+            if not was_high_risk:
+                db.add(RiskLog(
+                    dog_id=event.dog_id,
+                    input_text=risk_text[:512],
+                    matched_keyword=effective_keyword or "",
+                    action_taken="suspended_diet_and_supplements",
+                    warning_shown=1,
+                    user_confirmed=1,
+                ))
+        elif dog and was_high_risk:
+            # 只有高风险事件被改为非高风险时才重算；
+            # 编辑普通事件不应覆盖用户手动解除的暂停状态。
+            _recompute_suspension(db, dog)
+
+        if dog and (old_type == "洗澡澡" or event.type == "洗澡澡"):
+            _recompute_last_bath_date(db, dog)
+        if dog and event.photo:
+            _sync_health_photo_reference(dog, event.photo, event.type, event.date)
+
+        return {
+            "message": "汪汪！事件已更新，主人的记录越来越完整了～🐾",
+            "event_id": event.id,
+            "high_risk": bool(effective_high_risk),
+            "risk_keyword": effective_keyword,
+        }
 
 
 @app.delete("/api/event/{event_id}")
@@ -1891,12 +2121,23 @@ def api_delete_event(event_id: int):
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="找不到这条事件记录，主人～")
-        # 清理关联的照片文件
-        if event.photo:
-            photo_path = os.path.join(PHOTOS_DIR, event.photo)
+        dog = db.query(Dog).filter(Dog.id == event.dog_id).first()
+        event_type = event.type
+        event_photo = event.photo
+        was_high_risk = bool(event.high_risk)
+        # 清理关联的照片文件和健康相册引用
+        if event_photo:
+            photo_path = os.path.join(PHOTOS_DIR, event_photo)
             if os.path.exists(photo_path):
                 os.remove(photo_path)
+            _remove_health_photo_reference(dog, event_photo)
         db.delete(event)
+        db.flush()
+        if dog:
+            if event_type == "洗澡澡":
+                _recompute_last_bath_date(db, dog)
+            if was_high_risk:
+                _recompute_suspension(db, dog)
         return {"message": "汪汪，这条记录已经被我删掉了，主人的大事记保持整洁很重要～"}
 
 
@@ -2747,7 +2988,12 @@ def api_health_check():
     with get_db() as db:
         dog = db.query(Dog).order_by(Dog.created_at.desc()).first()
         if not dog:
-            return {"has_dog": False, "reminders": [], "latest_event": None}
+            return {
+                "has_dog": False,
+                "reminders": [],
+                "latest_event": None,
+                "vaccine_reminder_days": VACCINE_REMINDER_DAYS,
+            }
 
         events = db.query(Event).filter(Event.dog_id == dog.id).order_by(Event.date.desc()).all()
 
@@ -2777,20 +3023,21 @@ def api_health_check():
         reminders: List[Dict[str, str]] = []
         today = date.today()
 
-        # 疫苗：核心疫苗（犬瘟/细小/腺病毒）默认3年周期（WSAVA指南），非核心疫苗遵兽医建议
+        # 疫苗：使用可配置的项目提醒参数，不把它当作统一的医学标准。
+        # 不同疫苗的加强周期可能不同，实际免疫计划应由兽医制定。
         if last_vaccine:
-            next_vaccine = last_vaccine + timedelta(days=1095)  # 3年 = 1095天
+            next_vaccine = last_vaccine + timedelta(days=VACCINE_REMINDER_DAYS)
             days_left = (next_vaccine - today).days
             if days_left <= 60:
                 if days_left < 0:
                     reminders.append({
                         "type": "疫苗",
-                        "text": f"主人，掐爪一算，我的核心疫苗保护已超过推荐周期啦！快带我去看兽医，让医生决定我是需要加强还是做抗体检测～不同的疫苗加强周期不同，遵医嘱最重要！",
+                        "text": f"主人，按当前的疫苗提醒参数，已经超过提醒周期啦！快带我去看兽医，让医生决定我是需要加强还是做抗体检测～不同疫苗的加强周期不同，遵医嘱最重要！",
                     })
                 else:
                     reminders.append({
                         "type": "疫苗",
-                        "text": f"主人，掐爪一算，我的核心疫苗大约还有{days_left}天需要关注，不同疫苗加强周期不同（核心疫苗通常每3年，非核心疫苗可能每年），记得问兽医我的具体情况哦～",
+                        "text": f"主人，按当前的疫苗提醒参数，大约还有{days_left}天需要关注；不同疫苗的加强周期不同，记得问兽医我的具体情况哦～",
                     })
         else:
             reminders.append({
@@ -2925,6 +3172,7 @@ def api_health_check():
             "latest_event": latest_event,
             "pending_actions": len(reminders),
             "last_vaccine_date": last_vaccine_date,
+            "vaccine_reminder_days": VACCINE_REMINDER_DAYS,
             "last_bath_date": last_bath_date,
             "next_bath_due": next_bath_due,
             "active_supplements_count": active_supp_count,
@@ -3720,6 +3968,7 @@ _HTML_CONTENT = r"""<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>PawLife — 我的汪生小助手 🐾</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet" />
@@ -4828,6 +5077,44 @@ body {
 }
 
 /* ===== 任务确认弹窗 ===== */
+/* ===== 每日提示卡片 ===== */
+.daily-tip-card {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.daily-tip-text {
+  margin-top: 6px;
+  color: var(--brown-light);
+  font-size: 0.9em;
+  line-height: 1.7;
+}
+
+/* ===== 每日任务卡片（高光时刻页） ===== */
+.task-card {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.task-body {
+  margin-top: 8px;
+  color: var(--brown);
+  line-height: 1.65;
+  font-size: 0.94em;
+}
+.task-thanks {
+  margin-top: 8px;
+  color: var(--green);
+  font-size: 0.86em;
+  line-height: 1.6;
+}
+.task-action-btn {
+  margin-top: 12px;
+  width: 100%;
+}
+.task-card.done {
+  background: #F7FBF1;
+  border-color: #D7E8C6;
+}
+
 .task-confirm-card {
   background: #FFFBF5;
   border-radius: 18px;
@@ -6434,6 +6721,12 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
       </div>
     </div>
 
+    <!-- 每日养宠提示 -->
+    <div class="card daily-tip-card">
+      <div class="card-title">💡 今日养宠提示</div>
+      <div class="daily-tip-text" id="dailyTipText">正在加载今日提示...</div>
+    </div>
+
     <!-- 功能入口：4 列网格，主功能跨 2 列 -->
     <div class="quick-record-grid">
       <div class="quick-record-card qr-span-2" onclick="navigateTo('record')">
@@ -6493,6 +6786,18 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
     <div class="section-label">📸 成长记录</div>
     <div class="growth-compact" id="growthCompact">
       <div class="skeleton" style="width:50%;"></div>
+    </div>
+
+    <!-- ===== 健康成长相册 ===== -->
+    <div class="photo-gallery-section" id="photoGallerySection" style="display:none;">
+      <div class="photo-gallery-header">
+        <span>📷 健康成长相册</span>
+        <span id="photoGalleryCount" class="photo-gallery-count" style="display:none;"></span>
+      </div>
+      <div class="photo-gallery-locked" id="photoGalleryLocked" style="display:none;">
+        <div class="photo-gallery-locked-intro">记录健康事件时拍照，照片会出现在这里；点击照片可以删除。</div>
+      </div>
+      <div class="photo-gallery-filmtrip" id="photoGalleryStrip" style="display:none;"></div>
     </div>
 
     <!-- 彩蛋提示 -->
@@ -6605,6 +6910,14 @@ select::-webkit-scrollbar-thumb:hover { background: #B8956E; }
           <div class="badge-emotion-text" id="badgeEmotionText">每一枚勋章，都是我们一起认真生活的证据。</div>
         </div>
       </div>
+    </div>
+
+    <!-- 每日任务 -->
+    <div class="card task-card" id="taskCard">
+      <div class="card-title">✅ 今日小任务</div>
+      <div class="task-body" id="taskBody">任务加载中...</div>
+      <div class="task-thanks" id="taskThanks" style="display:none;"></div>
+      <button type="button" class="btn btn-primary task-action-btn" id="taskActionBtn">去完成</button>
     </div>
 
     <!-- 故事线分类区 -->
@@ -6972,10 +7285,56 @@ const HIGH_RISK_SYMPTOMS = [
   "误食老鼠药", "被蛇咬", "严重外伤", "大出血", "骨折", "烫伤",
 ];
 
-// 检查文本是否包含高危症状关键词，返回命中的关键词（null 表示通过）
+// 与后端 HIGH_RISK_SYNONYMS 保持一致；仅用于保守提示。
+const HIGH_RISK_SYNONYMS = {
+  "一直吐": "持续呕吐",
+  "不停吐": "持续呕吐",
+  "连续吐": "持续呕吐",
+  "拉血": "便血",
+  "大便带血": "便血",
+  "抽风": "抽搐",
+  "喘不上气": "呼吸困难",
+  "呼吸很急": "呼吸急促",
+  "吃了巧克力": "误食巧克力",
+  "吃了葡萄": "误食葡萄",
+  "吃了洋葱": "误食洋葱",
+  "吃了木糖醇": "误食木糖醇",
+  "没有意识": "意识丧失",
+  "晕过去": "昏厥",
+};
+
+const HIGH_RISK_HISTORY_MARKERS = ["上次", "之前", "以前", "曾经", "过去", "昨天", "前天", "上周"];
+const HIGH_RISK_RESOLVED_MARKERS = ["已恢复", "已经恢复", "已好转", "已经好了", "恢复正常", "现在正常", "目前正常", "无复发", "没再", "未再", "已稳定"];
+const HIGH_RISK_NEGATION_RE = /(?:没有|没|未见|未出现|无|否认|并无|不再|没再|未再|未|不)(?:明显)?(?:的)?(?:出现|发现|发生)?\s*$/;
+
+// 与后端保持一致：否定表达和“上次已恢复”的历史描述不触发高风险提示。
+function isNegatedOrResolved(text, start, end) {
+  const before = text.slice(Math.max(0, start - 10), start);
+  const after = text.slice(end, end + 28);
+  if (HIGH_RISK_NEGATION_RE.test(before)) return true;
+  const hasHistory = HIGH_RISK_HISTORY_MARKERS.some(m => before.includes(m));
+  const hasResolution = HIGH_RISK_RESOLVED_MARKERS.some(m => after.includes(m));
+  if (hasHistory && hasResolution) return true;
+  if (hasHistory && /(今天|现在|目前|当前).{0,8}(正常|稳定|精神好|精神不错|已恢复|没有|无|未见|未出现)/.test(after)) return true;
+  return false;
+}
+
 function checkHighRisk(text) {
+  if (!text) return null;
+  function findUnnegated(needle) {
+    let start = text.indexOf(needle);
+    while (start !== -1) {
+      const end = start + needle.length;
+      if (!isNegatedOrResolved(text, start, end)) return true;
+      start = text.indexOf(needle, start + 1);
+    }
+    return false;
+  }
   for (const kw of HIGH_RISK_SYMPTOMS) {
-    if (text.indexOf(kw) !== -1) return kw;
+    if (findUnnegated(kw)) return kw;
+  }
+  for (const [phrase, kw] of Object.entries(HIGH_RISK_SYNONYMS)) {
+    if (findUnnegated(phrase)) return kw;
   }
   return null;
 }
@@ -7014,164 +7373,6 @@ async function api(path, opts) {
     }
     throw e;
   }
-}
-
-// ---- 每日生存指南数据（按季节/品种/类别标记） ----
-const DAILY_TIPS = [
-  // ===== 食品安全（全年通用）=====
-  { text: "今天别喂我吃葡萄哦，一颗就可能让我肾受伤，葡萄干也一样危险！", tags: ["food"] },
-  { text: "巧克力对我们狗狗来说是毒药，越纯越危险，主人一定要收好～", tags: ["food"] },
-  { text: "洋葱、大蒜、韭菜这些东西会破坏我的红血球，千万别混在我的饭里。", tags: ["food"] },
-  { text: "木糖醇（无糖口香糖里常有）对我超级毒，一点点就可能让我低血糖甚至肝衰竭。", tags: ["food"] },
-  { text: "夏威夷果我也不行，吃了会发抖、发烧、走不动路。", tags: ["food"] },
-  { text: "牛油果含有persin，对我不好，别给我尝鲜哦。", tags: ["food"] },
-  { text: "咖啡和茶里面的咖啡因会让我心跳过快、抽搐，杯子要放高高的。", tags: ["food"] },
-  { text: "生面团在我肚子里会发酵膨胀，还会产生酒精，非常危险！", tags: ["food"] },
-  { text: "煮熟的鸡骨头会裂成尖刺，千万别喂我，生骨头也要在主人监督下吃～", tags: ["food"] },
-  { text: "过多的盐分对我们狗狗肾脏负担很大，人吃的菜不要分给我哦～", tags: ["food"] },
-
-  // ===== 日常护理（全年通用）=====
-  { text: "每天出门散步时让我闻一闻世界，闻闻是狗狗的社交网络哦～", tags: ["care"] },
-  { text: "我摇尾巴不一定是开心，也可能是紧张，主人要学会读懂我的身体语言。", tags: ["care"] },
-  { text: "给我一个固定的作息吧，定时吃饭、散步、睡觉会让我很有安全感。", tags: ["care"] },
-  { text: "剪指甲不要剪到粉红色的部分，那里有血管和神经，会疼也会出血。", tags: ["care"] },
-  { text: "每天帮我刷刷牙，牙结石会导致心脏病和肾病，小牙刷大健康！", tags: ["care"] },
-  { text: "训练我的时候用零食奖励比惩罚有效一万倍，我超好收买的～", tags: ["care"] },
-  { text: "我吃便便有时候是因为缺乏微量元素或者消化不好，不是变态行为啦。", tags: ["care"] },
-  { text: "我舔脚掌太频繁可能是过敏或者焦虑，主人帮我查查原因。", tags: ["care"] },
-  { text: "给我准备一些咬胶和玩具，换牙期的小狗和无聊的大狗都需要发泄。", tags: ["care"] },
-  { text: "每周帮我清洁一次耳朵，金毛、拉布拉多等垂耳狗狗尤其容易耳道感染～", tags: ["care"] },
-  { text: "定期帮我梳毛不仅能减少掉毛，还能促进血液循环，是我们之间的亲密时光～", tags: ["care"] },
-  { text: "出门一定要牵绳！不是我不听话，是外面的世界诱惑太多啦，绳绳是我的生命线～", tags: ["care"] },
-
-  // ===== 夏季专属（6-8月）=====
-  { text: "夏天千万别把我留在车里，即使开了窗，车内温度几分钟就能致命。", tags: ["summer"] },
-  { text: "柏油路面夏天温度能到60度以上，主人用手背贴地试试，烫的话我也不要光脚走～", tags: ["summer"] },
-  { text: "夏天带水碗出门，我散热主要靠喘气和脚垫，随时补水超重要！", tags: ["summer"] },
-  { text: "冰水不要直接给我喝，太冰的水可能引起胃痉挛，常温凉白开就很好～", tags: ["summer"] },
-  { text: "游泳是夏天最好的运动！但要穿救生衣，游完用清水冲洗，别让池水或海水刺激我的皮肤～", tags: ["summer"] },
-  { text: "夏天草丛里蜱虫超多，每次散步回来帮我全身摸一遍，重点检查耳朵、腋下、趾间～", tags: ["summer"] },
-  { text: "中午最热的时段不要带我出门，清晨和傍晚散步才是对我们的关节和脚垫最好的～", tags: ["summer"] },
-  { text: "夏天我会掉更多毛来换夏装，这是正常的！多梳毛帮我去掉死毛，也会凉快很多～", tags: ["summer"] },
-
-  // ===== 冬季专属（12-2月）=====
-  { text: "冬天短毛狗狗出门可以穿件小衣服，但不要穿太紧，回家记得脱掉防潮湿～", tags: ["winter"] },
-  { text: "下雪天出门后记得帮我擦脚！融雪剂会刺激脚垫，雪块夹在趾间也超级疼～", tags: ["winter"] },
-  { text: "冬天家里开暖气空气干燥，我可能会皮肤发痒，加湿器能帮大忙～", tags: ["winter"] },
-  { text: "冬天我消耗更多热量保暖，可以稍微加一点狗粮，但别过量导致肥胖哦～", tags: ["winter"] },
-  { text: "不要因为我怕冷就让我整天窝着不动！适当的室内游戏和运动对身心健康都重要～", tags: ["winter"] },
-
-  // ===== 春季专属（3-5月）=====
-  { text: "春天花粉飘散，我可能会过敏打喷嚏、眼睛发红、皮肤痒，主人帮我留意一下～", tags: ["spring"] },
-  { text: "春天是跳蚤和蜱虫复苏的季节，记得每月按时做好体外驱虫～", tags: ["spring"] },
-  { text: "春天换毛季来啦！每天多花5分钟帮我梳毛，不仅家里少飞毛，我也更舒服～", tags: ["spring"] },
-  { text: "春天户外活动增多，别忘了检查我的疫苗有效期，出去玩才有保障～", tags: ["spring"] },
-
-  // ===== 秋季专属（9-11月）=====
-  { text: "秋天也在换毛，为了长冬毛做准备～梳毛频率别减，帮我把旧毛清理干净！", tags: ["autumn"] },
-  { text: "秋天气温忽冷忽热，关节不好的狗狗（尤其是老年犬和金毛、柯基等品种）要多注意保暖～", tags: ["autumn"] },
-  { text: "秋天是贴秋膘的季节，但主人别让我吃太多！肥胖会加重关节负担和心脏病风险～", tags: ["autumn"] },
-
-  // ===== 品种专属 =====
-  { text: "我们金毛双层被毛需要定期梳理，耳朵也要每周检查和清洁，不然容易藏污纳垢发炎～", tags: ["金毛"] },
-  { text: "金毛和拉布拉多都容易髋关节发育不良，控制体重是关键！过重会加速关节退化～", tags: ["金毛", "拉布拉多"] },
-  { text: "拉布拉多是著名贪吃鬼，但也是最容易吃出胰腺炎的品种！高油高脂的人食千万别喂我～", tags: ["拉布拉多"] },
-  { text: "柯基的小短腿很可爱，但上下楼梯和跳沙发会严重损伤我们的脊椎！主人给我准备个小斜坡吧～", tags: ["柯基"] },
-  { text: "柯基掉毛量非常惊人，每天梳毛和补充Omega-3对减少掉毛有帮助哦～", tags: ["柯基"] },
-  { text: "贵宾的卷毛虽然好看但不打理容易打结，6-8周美容一次，在家也要天天梳～", tags: ["贵宾"] },
-  { text: "贵宾皮肤敏感，换低敏狗粮、用温和沐浴露能减少瘙痒和皮屑～", tags: ["贵宾"] },
-  { text: "豆柴虽然是小型犬但精力充沛，每天至少30分钟运动加脑力游戏，否则可能会拆家哦～", tags: ["豆柴"] },
-  { text: "豆柴换毛期掉毛量不比大型犬少！用底绒梳把底层绒毛梳掉能减少家里到处是毛～", tags: ["豆柴"] },
-  { text: "混血狗狗通常比纯种更健康（杂交优势！），但还是要定期体检，每个汪星人都是独一无二的～", tags: ["混血", "其他"] },
-
-  // ===== 品种专属（续）=====
-  { text: "我们泰迪（其实就是贵宾啦）卷毛好看但不打理容易打结，6-8周美容一次，在家也要天天梳～", tags: ["泰迪"] },
-  { text: "比熊的白色卷毛虽然美但皮肤超敏感，用低敏沐浴露、定期驱虫，Omega-3对皮肤也好～", tags: ["比熊"] },
-  { text: "博美气管比较脆弱，项圈勒太紧会让我咳嗽，换成胸背带对气管更友好，也别让我太兴奋～", tags: ["博美"] },
-  { text: "吉娃娃是世界上最小的狗狗之一，但也最容易有牙齿问题！从小给我刷牙，别只喂软食～", tags: ["吉娃娃"] },
-  { text: "约克夏那一身丝滑长发其实是单层毛，几乎不掉毛，但要天天梳免得打结，头顶扎个小辫才不挡眼睛～", tags: ["约克夏"] },
-  { text: "迷你雪纳瑞的胡子是标志性的可爱，但每次喝水吃饭后要帮我擦擦，不然容易滋生细菌发黄～", tags: ["迷你雪纳瑞"] },
-  { text: "巴哥的大眼睛虽然可爱但很突出，容易受伤和干涩。别让我把头伸出车窗兜风，灰尘和异物会伤到角膜～", tags: ["巴哥"] },
-  { text: "京巴的短鼻子和大眼睛是特点也是弱点，注意眼部清洁、夏天一定要防中暑，不能在炎热环境待太久～", tags: ["京巴"] },
-  { text: "西施那一身华丽长毛底下皮肤容易闷出问题，洗澡一定吹到干透，平时多帮我梳理透气～", tags: ["西施"] },
-  { text: "马尔济斯也是几乎不掉毛的品种，对过敏体质的主人很友好！但泪痕问题要重视，每天擦眼周保持干燥～", tags: ["马尔济斯"] },
-  { text: "迷你杜宾虽然是'迷你'但胆子一点不小，精力也旺盛！每天给我足够的运动和脑力挑战，不然我会自己找事做～", tags: ["迷你杜宾"] },
-  { text: "柴犬是出了名的'戏精'，有时候一点小伤小痛会叫得惊天动地，但韧性和忍痛力其实很强。主人要多观察我的真实状态～", tags: ["柴犬"] },
-  { text: "法斗不能游泳！我们的身体结构和短鼻子让我们天生是旱鸭子。千万别让我接近深水，连宠物泳池也要穿救生衣～", tags: ["法斗"] },
-  { text: "英斗打呼噜是正常的，但如果突然变响或喘得更厉害，可能是软腭过长或呼吸道问题加重了，要去看医生～", tags: ["英斗"] },
-  { text: "中华田园犬基因多样性高、抵抗力强，是真正'好养'的狗狗！但也不要因此忽视定期疫苗和驱虫哦～", tags: ["中华田园犬"] },
-  { text: "银狐犬那一身雪白双层被毛虽然美，但换毛季掉毛量非常惊人！每天用排梳把底层绒毛梳掉，能减少家里下'雪'～", tags: ["银狐"] },
-  { text: "比格犬的鼻子有超过2亿个嗅觉受体（人类才500万个），出门闻个不停是天性。给我充足的嗅闻时间是对我最好的精神满足～", tags: ["比格"] },
-  { text: "德牧的智商在犬类排名第三，同时也是工作犬的灵魂。每天给我任务和挑战，不只是遛弯，智力游戏同样重要！", tags: ["德牧"] },
-  { text: "萨摩耶的标志微笑很治愈，但夏天一定要防中暑！双层被毛虽然保暖但也隔热，不要剃光，合理梳毛才正确～", tags: ["萨摩耶"] },
-  { text: "边牧是犬界智商第一，但也最容易因为无聊而产生行为问题。每天至少1小时高强度运动+脑力训练，敏捷球、飞盘是我们的最爱～", tags: ["边牧"] },
-  { text: "哈士奇不是'笨'，是太有主见了！训练需要耐心和创意，美食诱惑最管用。还有，出门一定要牵绳，我们的逃跑能力是传奇级别的～", tags: ["哈士奇"] },
-  { text: "阿拉斯加是雪橇三傻中最壮的一个，夏天怕热怕得不行！室内保持凉爽，室外活动安排在清晨和傍晚，随时备好充足的饮水～", tags: ["阿拉斯加"] },
-  { text: "秋田犬对主人极度忠诚，但可能对同性别的陌生狗狗不友好。从小充分社会化训练很重要，外出时保持适当的社交距离～", tags: ["秋田"] },
-  { text: "松狮的紫黑色舌头是品种特征不是生病了哦！但我们怕热、皮肤皱褶多，夏天要在阴凉处，定期清理皱褶防止皮肤炎～", tags: ["松狮"] },
-  { text: "罗威纳外表威严但内心温柔，对家人极其忠诚。作为大型工作犬，髋关节保养从小就要重视，控制体重+关节保健品双管齐下～", tags: ["罗威纳"] },
-  { text: "杜宾是犬界超模，身材修长又优雅。但心脏健康是大问题，每年心脏超声筛查不能省，早期发现DCM才能及时干预～", tags: ["杜宾"] },
-  { text: "大白熊体型巨大但性格温和得像大白一样。大型犬关节和胃扭转是两大风险，少食多餐、避免饭后剧烈运动能防胃扭转～", tags: ["大白熊"] },
-
-  // ===== 行为与训练 =====
-  { text: "我害怕打雷和鞭炮声的时候，请让我躲到我觉得安全的地方，不要强行拉我出来，安静陪着我就好～", tags: ["behavior"] },
-  { text: "社会化训练从小开始！3-16周是黄金期，让我多见不同的人、狗狗和环境，长大后会更自信从容～", tags: ["behavior"] },
-  { text: "如果我不停追尾巴、舔同一个地方、或者转圈圈停不下来，可能是焦虑或强迫行为，主人帮我找找原因～", tags: ["behavior"] },
-  { text: "给我一个专属的安全角落（一个垫子或小窝），当我感到压力时可以躲进去，这让我有安全感～", tags: ["behavior"] },
-  { text: "分离焦虑不是我在'作'，是真的害怕一个人。从短时间开始练习，留一件有你味道的旧衣服陪着我～", tags: ["behavior"] },
-
-  // ===== 健康监测 =====
-  { text: "正常狗狗体温在38-39.2度之间，鼻子湿凉不是判断健康的标准，精神状态和食欲才是～", tags: ["health"] },
-  { text: "每年至少一次全面体检，7岁以上的狗狗建议半年一次，早期发现问题治疗效果好多啦！", tags: ["health"] },
-  { text: "刷牙是最好的牙周病预防！口臭不是正常的，可能是牙结石或口腔感染的信号～", tags: ["health"] },
-  { text: "观察我的便便很重要——颜色、形状、次数变化都可能反映健康问题，主人帮我多看一眼～", tags: ["health"] },
-  { text: "疫苗接种后24小时内我可能会犯困、食欲略差、注射部位有点肿，这是正常的，但如果脸肿或呼吸困难要立刻就医！", tags: ["health"] },
-];
-
-let lastTipIndex = -1;
-
-function getRandomTip() {
-  let idx;
-  do {
-    idx = Math.floor(Math.random() * DAILY_TIPS.length);
-  } while (idx === lastTipIndex && DAILY_TIPS.length > 1);
-  lastTipIndex = idx;
-  return DAILY_TIPS[idx].text;
-}
-
-function getSmartTip(breed, month) {
-  // 根据当前月份确定季节标签
-  let seasonTag = null;
-  if (month >= 6 && month <= 8) seasonTag = 'summer';
-  else if (month >= 12 || month <= 2) seasonTag = 'winter';
-  else if (month >= 3 && month <= 5) seasonTag = 'spring';
-  else seasonTag = 'autumn';
-
-  // 三级匹配：品种 > 季节 > 通用
-  let pool = DAILY_TIPS.filter(t => t.tags.includes(breed));
-  if (pool.length < 3) {
-    const seasonal = DAILY_TIPS.filter(t => t.tags.includes(seasonTag) && !pool.includes(t));
-    pool = pool.concat(seasonal);
-  }
-  if (pool.length < 5) {
-    const general = DAILY_TIPS.filter(t =>
-      (t.tags.includes('care') || t.tags.includes('health') || t.tags.includes('food') || t.tags.includes('behavior'))
-      && !pool.includes(t)
-    );
-    pool = pool.concat(general);
-  }
-  // 兜底：全部贴士
-  if (pool.length === 0) pool = DAILY_TIPS;
-
-  // 避免与上一条重复
-  let idx;
-  let attempts = 0;
-  do {
-    idx = Math.floor(Math.random() * pool.length);
-    attempts++;
-  } while (attempts < 20 && DAILY_TIPS.indexOf(pool[idx]) === lastTipIndex && pool.length > 1);
-  lastTipIndex = DAILY_TIPS.indexOf(pool[idx]);
-  return pool[idx].text;
 }
 
 // ---- 个性化今日汪汪 ----
@@ -7261,6 +7462,18 @@ async function loadToday() {
     if (!data.has_dog) return;
     updateBadges(data);
   } catch (e) {}
+  loadDailyTip();
+}
+
+async function loadDailyTip() {
+  const el = $('dailyTipText');
+  if (!el) return;
+  try {
+    const data = await api('/api/daily_tip');
+    el.textContent = data.text || '今天也要好好照顾我哦～';
+  } catch (e) {
+    el.textContent = '今日提示加载失败，稍后再试～';
+  }
 }
 
 // ---- 从提醒快捷跳转到记录 ----
@@ -7297,6 +7510,7 @@ function editEvent(eventId) {
       document.querySelectorAll('#symptomGroup input[type="checkbox"]').forEach(cb => {
         cb.checked = symptoms.includes(cb.value);
       });
+      if ($('efAbnormalNote')) $('efAbnormalNote').value = detail.note || '';
     }
   }, 100);
 
@@ -7892,9 +8106,10 @@ async function loadProfile() {
     // 健康快照
     loadHealthSnapshot(dog);
 
-    // 显示狗狗照片
+    // 显示狗狗照片和健康相册
     showDogPhoto(dog.photo, dog.breed);
     loadDailyAvatar();
+    await loadPhotoGallery();
     updateGreeting(dog.name);
 
     // 更新事件卡片副标题和发情选项
@@ -8214,7 +8429,7 @@ async function loadPhotoGallery() {
     // 0. 空相册 → 引导文案
     if (photoCount === 0) {
       if (locked) locked.style.display = '';
-      if (strip) strip.style.display = 'none';
+      if (strip) { strip.innerHTML = ''; strip.style.display = 'none'; }
       if (countEl) countEl.style.display = 'none';
       return;
     }
@@ -8272,7 +8487,6 @@ async function confirmDeletePhoto(index) {
     if (!resp.ok) throw new Error(data.detail || '删除失败');
     showToast(data.message);
     await loadProfile();
-    loadPhotoGallery();
   } catch (e) {
     showToast('删除失败：' + (e.message || '未知错误'), true);
   }
@@ -9187,6 +9401,7 @@ $('btnAddWeight').addEventListener('click', async function() {
     $('wlDate').value = new Date().toISOString().slice(0, 10);
     loadWeightLogs();
     loadProfile();
+    setTimeout(() => checkPendingTask(), 300);
     if (r.new_badges && r.new_badges.length > 0) {
       handleNewBadges(r.new_badges);
     }
@@ -9208,18 +9423,23 @@ async function loadRemindersPage() {
     const events = await api('/api/events?pet_id=' + _cachedDog.id);
     const today = new Date().toISOString().slice(0, 10);
 
+    // 提醒参数由后端统一返回，避免前后端各自维护疫苗周期。
+    let healthData = null;
+    try { healthData = await api('/api/health_check'); } catch (e) {}
+    const vaccineDays = (healthData && Number(healthData.vaccine_reminder_days)) || 1095;
+
     // 推算各类提醒
     const reminders = [];
 
-    // 疫苗提醒：最近一次疫苗 + 标准间隔
+    // 疫苗提醒：最近一次疫苗 + 服务端提醒参数
     const vaccineEvents = events.filter(e => e.type === '疫苗');
     if (vaccineEvents.length > 0) {
       const lastVax = vaccineEvents.reduce((a, b) => a.date > b.date ? a : b);
       const nextVax = new Date(lastVax.date);
-      nextVax.setDate(nextVax.getDate() + 365);
+      nextVax.setDate(nextVax.getDate() + vaccineDays);
       const daysLeft = Math.ceil((nextVax - new Date()) / (1000 * 60 * 60 * 24));
       if (daysLeft <= 0) {
-        reminders.push({ icon: '🔴', title: '疫苗已过期', desc: '距上次疫苗已超过 1 年（' + lastVax.date + '），请尽快联系兽医安排接种。', urgent: true, action: '去记录', target: 'record' });
+        reminders.push({ icon: '🔴', title: '疫苗已过期', desc: '距上次疫苗已超过当前提醒周期（' + lastVax.date + '），请尽快联系兽医安排接种。', urgent: true, action: '去记录', target: 'record' });
       } else if (daysLeft <= 30) {
         reminders.push({ icon: '🟡', title: '疫苗即将到期', desc: '下次疫苗建议在 ' + nextVax.toISOString().slice(0, 10) + '，可以提前预约了。', daysLeft: daysLeft, urgent: false, action: '去记录', target: 'record' });
       } else {
@@ -9250,7 +9470,7 @@ async function loadRemindersPage() {
     }
 
     // 发情提醒
-    if (_cachedDog.gender === '母') {
+    if (_cachedDog.gender === 'female') {
       const heatEvents = events.filter(e => e.type === '发情');
       if (heatEvents.length > 0) {
         const lastHeat = heatEvents.reduce((a, b) => a.date > b.date ? a : b);
@@ -9273,8 +9493,7 @@ async function loadRemindersPage() {
     }
 
     // 从 health_check 补充客户端未计算的提醒：洗澡、保健品、体况评估
-    try {
-      const healthData = await api('/api/health_check');
+    if (healthData && Array.isArray(healthData.reminders)) {
       const supplementTypes = ['洗澡澡', '保健品', '体况评估'];
       const supplementIcons = { '洗澡澡': '🛁', '保健品': '💊', '体况评估': '🤚' };
       const supplementActions = { '洗澡澡': { action: '去记录', target: 'record' }, '保健品': { action: '去看看', target: 'supplement' }, '体况评估': { action: '去评估', target: 'weight' } };
@@ -9290,7 +9509,7 @@ async function loadRemindersPage() {
           });
         }
       });
-    } catch (e) {}
+    }
 
     // 每日检查提醒
     try {
@@ -9743,6 +9962,7 @@ function navigateTo(page) {
     loadDietCard();
   } else if (page === 'badges') {
     loadBadgeWall();
+    loadTask();
   } else if (page === 'supplement') {
     loadSupplements();
   } else if (page === 'weight') {
@@ -10337,14 +10557,16 @@ function doTaskAction() {
   const action = _currentTaskData.action_type;
 
   if (action === 'navigate_weight') {
-    // 跳转到档案页面，并标记任务上下文
+    // 跳转到身材管理页面，并标记任务上下文
     localStorage.setItem('pendingTaskId', _currentTaskData.task_id);
     localStorage.setItem('pendingTaskThanks', _currentTaskData.thanks);
-    navigateTo('profile');
-    // 滚动到体重区域（延迟执行）
+    navigateTo('weight');
+    // 滚动到体重记录区域（延迟执行）
     setTimeout(() => {
-      const el = document.getElementById('profileWeightHint');
-      if (el) { el.scrollIntoView({ behavior: 'smooth' }); el.style.background = '#FFF9C4'; setTimeout(() => el.style.background = '', 2000); }
+      const el = document.getElementById('cardWeightRecord');
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = '#FFF9C4'; setTimeout(() => el.style.background = '', 2000); }
+      const input = document.getElementById('wlWeight');
+      if (input) input.focus();
     }, 400);
   } else if (action === 'navigate_photo') {
     // 触发照片上传
@@ -10392,15 +10614,21 @@ async function _markTaskDone(taskId, thanksText) {
       return;
     }
 
-    // 更新UI
+    // 更新UI（任务卡可能不在当前页面，例如从体重/照片页返回时）
     const btn = $('taskActionBtn');
-    btn.className = 'btn task-action-btn done';
-    btn.textContent = '✅ 已完成';
-    btn.onclick = null;
-    $('taskThanks').textContent = '🐾 ' + (thanksText || '主人你太棒了！');
-    $('taskThanks').style.display = 'block';
-    $('taskCard').classList.add('done');
-    _currentTaskData.done = true;
+    if (btn) {
+      btn.className = 'btn task-action-btn done';
+      btn.textContent = '✅ 已完成';
+      btn.onclick = null;
+    }
+    const thanksEl = $('taskThanks');
+    if (thanksEl) {
+      thanksEl.textContent = '🐾 ' + (thanksText || '主人你太棒了！');
+      thanksEl.style.display = 'block';
+    }
+    const cardEl = $('taskCard');
+    if (cardEl) cardEl.classList.add('done');
+    if (_currentTaskData) _currentTaskData.done = true;
 
     // 提示
     if (data.auto_checked) {
@@ -10417,11 +10645,13 @@ async function _markTaskDone(taskId, thanksText) {
     loadCheckinStatus();
   } catch (e) {
     showToast('任务完成！主人对我真好～🐾');
-    // 即使失败也更新UI（离线友好）
+    // 即使失败也更新UI（离线友好）；任务卡可能不在当前页面
     const btn = $('taskActionBtn');
-    btn.className = 'btn task-action-btn done';
-    btn.textContent = '✅ 已完成';
-    btn.onclick = null;
+    if (btn) {
+      btn.className = 'btn task-action-btn done';
+      btn.textContent = '✅ 已完成';
+      btn.onclick = null;
+    }
   }
 }
 
@@ -10539,6 +10769,11 @@ function renderExtraFields() {
         <label><input type="checkbox" value="抓痒" /> 🐛 抓痒</label>
         <label><input type="checkbox" value="猛喝水" /> 💧 猛喝水</label>
         <label><input type="checkbox" value="不吃东西" /> 🍽️ 不吃东西</label>
+      </div>
+      <div style="margin-top:10px;">
+        <label style="font-size:0.85em;font-weight:600;color:var(--brown-light);">补充描述 <span class="optional">(建议填写)</span></label>
+        <textarea class="textarea" id="efAbnormalNote" placeholder="例如：今天散步后持续呕吐两次，精神很差；或吃了巧克力…"></textarea>
+        <div style="font-size:0.78em;color:var(--muted);margin-top:4px;line-height:1.5;">出现持续呕吐、便血、抽搐、呼吸困难、误食等描述时，会弹出紧急就医提醒。</div>
       </div>`;
   } else if (type === '洗澡澡') {
     html = `<div style="font-size:0.88em;color:var(--brown-light);margin:8px 0;">🛁 今天给我洗香香了吗？选好日期，主人就帮我记下来吧～</div>`;
@@ -10734,9 +10969,10 @@ $('btnSubmitEvent').addEventListener('click', async function() {
   } else if (type === '异常行为') {
     const checks = document.querySelectorAll('#symptomGroup input[type="checkbox"]:checked');
     detail.symptoms = Array.from(checks).map(c => c.value);
-    // 高风险症状检查：检查所有选中症状文本
-    const symptomText = detail.symptoms.join('，');
-    const matched = checkHighRisk(symptomText);
+    detail.note = ($('efAbnormalNote')?.value || '').trim();
+    // 高风险症状检查：同时扫描症状选项和自由描述
+    const riskText = detail.symptoms.join('，') + '，' + detail.note;
+    const matched = checkHighRisk(riskText);
     if (matched) {
       // 暂存提交上下文，弹出高风险警告
       _pendingHighRiskSubmit = { type, dateVal, detail, dog_id: null };
@@ -10803,6 +11039,9 @@ $('btnSubmitEvent').addEventListener('click', async function() {
       const typeNames = { '疫苗': '疫苗记录', '驱虫': '驱虫记录', '发情': '发情记录', '异常行为': '异常行为记录', '洗澡澡': '洗澡记录' };
       showToast('✅ ' + (typeNames[type] || '事件') + '已添加！向下滑动查看大事记～');
     }
+    if (r.high_risk) {
+      showToast('⚠️ 记录中包含高风险描述，今日建议已暂停，请及时联系兽医', true);
+    }
     reactionBox.innerHTML = '<div class="reaction-text">' + escHtml(r.message).replace(/\n/g, '<br>') + '</div>';
     if (type === '异常行为' && r.event_id) {
       reactionBox.innerHTML += '<div style="margin-top:12px;text-align:center;"><button class="vet-btn vet-btn-screen" style="font-size:0.9em;" onclick="showVetSummary(' + r.event_id + ')">📋 生成兽医摘要，方便就医时出示</button></div>';
@@ -10849,8 +11088,8 @@ $('btnRiskConfirm').addEventListener('click', async function() {
     const dog = await api('/api/dog');
     ctx.dog_id = dog.id;
 
-    // 找到命中的关键词
-    const symptomText = ctx.detail.symptoms.join('，');
+    // 找到命中的关键词（症状选项 + 自由描述）
+    const symptomText = (ctx.detail.symptoms || []).join('，') + '，' + (ctx.detail.note || '');
     const matched = checkHighRisk(symptomText);
 
     // 提交高风险事件
